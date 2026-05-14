@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Technical Design: Office LLM Harness via VSTO, MCP and Open WebUI</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --paper: #ffffff;
+      --text: #1b1f24;
+      --muted: #5d6673;
+      --line: #d8dee6;
+      --accent: #275efe;
+      --accent-soft: #eef3ff;
+      --ok: #0f7b4f;
+      --warn: #a05a00;
+      --danger: #a52727;
+      --code: #0f172a;
+      --code-bg: #f1f5f9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.55;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 40px 28px 72px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #12213f, #284d9f);
+      color: white;
+      padding: 42px;
+      border-radius: 24px;
+      box-shadow: 0 18px 48px rgba(18, 33, 63, 0.18);
+      margin-bottom: 28px;
+    }
+
+    header h1 {
+      margin: 0 0 12px;
+      font-size: 2.15rem;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+    }
+
+    header p {
+      margin: 0;
+      max-width: 860px;
+      color: rgba(255,255,255,0.86);
+      font-size: 1.05rem;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0 0;
+    }
+
+    .meta div {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.16);
+      padding: 12px 14px;
+      border-radius: 14px;
+    }
+
+    .meta span {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.68);
+    }
+
+    .meta strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 0.95rem;
+      font-weight: 650;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    nav {
+      position: sticky;
+      top: 18px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    nav h2 {
+      margin: 0 0 12px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    nav a {
+      display: block;
+      padding: 7px 8px;
+      color: var(--text);
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 0.94rem;
+    }
+
+    nav a:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 1.45rem;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 1.08rem;
+      line-height: 1.3;
+    }
+
+    h4 {
+      margin: 18px 0 8px;
+      font-size: 0.98rem;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    ul, ol {
+      margin: 8px 0 16px 22px;
+      padding: 0;
+    }
+
+    li {
+      margin: 5px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 18px;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+    }
+
+    th, td {
+      text-align: left;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      font-size: 0.94rem;
+    }
+
+    th {
+      background: #f6f8fb;
+      font-weight: 650;
+      color: #253044;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    code {
+      font-family: Consolas, Monaco, "Courier New", monospace;
+      color: var(--code);
+      background: var(--code-bg);
+      padding: 0.12rem 0.28rem;
+      border-radius: 6px;
+      font-size: 0.9em;
+    }
+
+    pre {
+      background: #0b1020;
+      color: #e8eefc;
+      padding: 18px;
+      border-radius: 16px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      border: 1px solid #1d2945;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      border-radius: 0;
+      font-size: inherit;
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      padding: 14px 16px;
+      border-radius: 12px;
+      margin: 14px 0;
+    }
+
+    .callout.warn {
+      border-left-color: var(--warn);
+      background: #fff6e8;
+    }
+
+    .callout.danger {
+      border-left-color: var(--danger);
+      background: #fff0f0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 650;
+      background: #eef2ff;
+      color: #284d9f;
+      border: 1px solid #d8e0ff;
+      margin-right: 6px;
+    }
+
+    .badge.ok {
+      background: #e9f8f1;
+      color: var(--ok);
+      border-color: #c8ebdb;
+    }
+
+    .badge.warn {
+      background: #fff6e8;
+      color: var(--warn);
+      border-color: #f4d4a4;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      background: #fbfcfe;
+    }
+
+    .card h3 {
+      margin-top: 0;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .diagram {
+      background: #fbfcfe;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      overflow-x: auto;
+    }
+
+    .diagram pre {
+      background: transparent;
+      border: none;
+      color: #172033;
+      padding: 0;
+      margin: 0;
+      box-shadow: none;
+    }
+
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    a { color: var(--accent); }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      nav {
+        position: static;
+      }
+
+      .meta, .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      header, section {
+        padding: 24px;
+      }
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .page {
+        max-width: none;
+        padding: 0;
+      }
+
+      header, section, nav {
+        box-shadow: none;
+        border-radius: 0;
+      }
+
+      nav {
+        display: none;
+      }
+
+      .layout {
+        display: block;
+      }
+
+      section {
+        page-break-inside: avoid;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Technical Design: Office LLM Harness via VSTO, MCP and Open WebUI</h1>
+      <p>
+        Design proposal for a Windows desktop Office add-in harness that exposes controlled document interaction tools
+        to Open WebUI through a local MCP server, enabling LLM-assisted workflows in Word, Excel, PowerPoint and Outlook.
+      </p>
+      <div class="meta">
+        <div><span>Status</span><strong>Draft for implementation planning</strong></div>
+        <div><span>Target runtime</span><strong>Windows desktop Office</strong></div>
+        <div><span>Primary integration</span><strong>VSTO + MCP Streamable HTTP</strong></div>
+        <div><span>Generated</span><strong>2026-05-14</strong></div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav aria-label="Table of contents">
+        <h2>Contents</h2>
+        <a href="#summary">1. Executive summary</a>
+        <a href="#goals">2. Goals and non-goals</a>
+        <a href="#assumptions">3. Assumptions</a>
+        <a href="#architecture">4. Architecture</a>
+        <a href="#components">5. Components</a>
+        <a href="#mcp">6. MCP interface</a>
+        <a href="#tools">7. Office tool catalogue</a>
+        <a href="#security">8. Security model</a>
+        <a href="#data">9. Data handling</a>
+        <a href="#ux">10. User experience</a>
+        <a href="#implementation">11. Implementation plan</a>
+        <a href="#testing">12. Testing strategy</a>
+        <a href="#deployment">13. Deployment</a>
+        <a href="#risks">14. Risks and mitigations</a>
+        <a href="#decisions">15. Decisions and open questions</a>
+        <a href="#references">16. References</a>
+      </nav>
+
+      <main>
+        <section id="summary">
+          <h2>1. Executive summary</h2>
+          <div class="status-row">
+            <span class="badge ok">Recommended</span>
+            <span class="badge">Pattern B</span>
+            <span class="badge">Local MCP server</span>
+            <span class="badge warn">Windows only</span>
+          </div>
+          <p>
+            The recommended implementation is a VSTO-based Office harness that starts or connects to a local MCP server.
+            Open WebUI connects to this MCP server as an external tool provider. The MCP server exposes controlled,
+            document-aware tools such as reading the current selection, extracting slide outlines, reading worksheet ranges,
+            drafting Outlook replies and applying approved document edits.
+          </p>
+          <p>
+            This keeps Office automation local to the user session, avoids exposing raw COM automation to the model and allows
+            Open WebUI to use the tools through its native MCP integration. For an MVP, the MCP endpoint can bind to
+            <code>127.0.0.1</code> and use no authentication. For production, add a per-session token and explicit confirmation
+            for destructive actions.
+          </p>
+        </section>
+
+        <section id="goals">
+          <h2>2. Goals and non-goals</h2>
+
+          <h3>Goals</h3>
+          <ul>
+            <li>Provide LLM capabilities inside Word, Excel, PowerPoint and Outlook on Windows desktop Office.</li>
+            <li>Expose document interaction through capability-based tools, not arbitrary code execution.</li>
+            <li>Use Open WebUI as the LLM front end, model router and tool caller.</li>
+            <li>Support local document context extraction and safe document mutation.</li>
+            <li>Preserve user control through previews, diffs and confirmation gates.</li>
+            <li>Make the architecture extensible enough to add more Office hosts later.</li>
+          </ul>
+
+          <h3>Non-goals</h3>
+          <ul>
+            <li>Support Office for Web, Office for Mac or mobile Office in the first implementation.</li>
+            <li>Expose unrestricted Office COM automation to the model.</li>
+            <li>Send entire documents by default.</li>
+            <li>Let the model send emails, delete content or overwrite large ranges without explicit user confirmation.</li>
+            <li>Implement a general-purpose enterprise DLP system in the MVP.</li>
+          </ul>
+        </section>
+
+        <section id="assumptions">
+          <h2>3. Assumptions</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Assumption</th>
+                <th>Impact</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Office runtime</td>
+                <td>Users run Windows desktop Office with VSTO support.</td>
+                <td>Allows deep access to Word, Excel, PowerPoint and Outlook object models.</td>
+              </tr>
+              <tr>
+                <td>Open WebUI</td>
+                <td>Open WebUI version supports native MCP Streamable HTTP external tools.</td>
+                <td>Local MCP server can be registered directly instead of being bridged via OpenAPI.</td>
+              </tr>
+              <tr>
+                <td>Networking</td>
+                <td>MCP server runs on the same Windows host as Office, bound to localhost.</td>
+                <td>Remote network exposure is avoided for the MVP.</td>
+              </tr>
+              <tr>
+                <td>Open WebUI hosting</td>
+                <td>Open WebUI may run locally, in Docker or on a remote server.</td>
+                <td>Docker requires <code>host.docker.internal</code>; remote hosting cannot directly reach localhost without a tunnel or agent.</td>
+              </tr>
+              <tr>
+                <td>Authentication</td>
+                <td>MVP can skip MCP auth if localhost-only; production should add a session token.</td>
+                <td>Simpler MVP, but local process abuse remains a risk without tokenization.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="architecture">
+          <h2>4. Architecture</h2>
+
+          <h3>High-level system view</h3>
+          <div class="diagram">
+            <pre><code>+--------------------+        +-------------------------+
+| Word / Excel /     |        | Open WebUI              |
+| PowerPoint /       |        | - Chat UI               |
+| Outlook            |        | - Model routing         |
++---------+----------+        | - MCP external tools    |
+          |                   +-----------+-------------+
+          | VSTO / COM                    |
+          v                               | MCP Streamable HTTP
++---------+----------+                    |
+| Office VSTO Add-in |                    |
+| - Ribbon / pane    |                    |
+| - User prompts     |                    |
+| - Confirmation UI  |                    |
+| - Office adapter   |                    |
++---------+----------+                    |
+          | Named pipe / localhost / IPC  |
+          v                               |
++---------+-------------------------------+-------------+
+| Local Office MCP Server                               |
+| - MCP protocol endpoint                               |
+| - Tool registry                                      |
+| - Tool execution policy                              |
+| - Context serialization                              |
+| - Audit log                                          |
++------------------------------------------------------+</code></pre>
+          </div>
+
+          <h3>Recommended process model</h3>
+          <p>
+            Use one shared helper process for the MCP server instead of embedding the MCP server inside every VSTO add-in.
+            Each Office host add-in communicates with the helper over local IPC.
+          </p>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3>VSTO add-in</h3>
+              <p>Lives inside Office. Owns UI, Office object-model access, selection state and confirmation workflows.</p>
+            </div>
+            <div class="card">
+              <h3>MCP helper process</h3>
+              <p>Lives outside Office. Owns MCP transport, tool registry, request validation, audit logging and coordination.</p>
+            </div>
+          </div>
+
+          <h3>Why not expose raw COM?</h3>
+          <p>
+            Direct model access to COM would create uncontrolled mutation risk, unstable execution and a difficult security boundary.
+            The MCP server must expose narrow, intentional tools with typed inputs and bounded outputs.
+          </p>
+        </section>
+
+        <section id="components">
+          <h2>5. Components</h2>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Responsibilities</th>
+                <th>Technology suggestion</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Office host add-ins</td>
+                <td>Ribbon/task pane UI, Office COM access, selected document/session state, confirmation dialogs.</td>
+                <td>C# VSTO Add-ins targeting .NET Framework.</td>
+              </tr>
+              <tr>
+                <td>Office adapter library</td>
+                <td>Normalizes document operations across Office hosts and implements app-specific adapters.</td>
+                <td>Shared C# library referenced by VSTO projects.</td>
+              </tr>
+              <tr>
+                <td>Local MCP server</td>
+                <td>Exposes MCP tools over Streamable HTTP and routes tool calls to the active Office adapter.</td>
+                <td>.NET 8 worker process or minimal HTTP service.</td>
+              </tr>
+              <tr>
+                <td>IPC channel</td>
+                <td>Connects MCP helper to the in-process VSTO add-ins.</td>
+                <td>Named pipes preferred; localhost HTTP acceptable for MVP.</td>
+              </tr>
+              <tr>
+                <td>Open WebUI</td>
+                <td>LLM chat interface, model routing, MCP external tool registration.</td>
+                <td>Existing Open WebUI deployment.</td>
+              </tr>
+              <tr>
+                <td>Audit store</td>
+                <td>Records tool calls, inputs, summaries, user confirmations and resulting changes.</td>
+                <td>Local JSONL or SQLite for MVP; central logging later.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="callout">
+            <strong>Implementation preference:</strong> keep model interaction inside Open WebUI and Office interaction inside the local harness.
+            The MCP server is the boundary between the two.
+          </div>
+        </section>
+
+        <section id="mcp">
+          <h2>6. MCP interface</h2>
+
+          <h3>Endpoint</h3>
+          <pre><code>http://127.0.0.1:&lt;port&gt;/mcp</code></pre>
+
+          <p>
+            If Open WebUI runs in Docker on the same workstation, register the endpoint as:
+          </p>
+
+          <pre><code>http://host.docker.internal:&lt;port&gt;/mcp</code></pre>
+
+          <h3>Open WebUI external tool registration</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Setting</th>
+                <th>MVP value</th>
+                <th>Production value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Type</td>
+                <td>MCP / Streamable HTTP</td>
+                <td>MCP / Streamable HTTP</td>
+              </tr>
+              <tr>
+                <td>URL</td>
+                <td><code>http://127.0.0.1:&lt;port&gt;/mcp</code></td>
+                <td>Same, or managed local agent endpoint.</td>
+              </tr>
+              <tr>
+                <td>Authentication</td>
+                <td>None</td>
+                <td>Bearer token or custom header with per-session secret.</td>
+              </tr>
+              <tr>
+                <td>Scope</td>
+                <td>Local developer machine.</td>
+                <td>Per user, centrally managed deployment policy.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Tool naming convention</h3>
+          <p>
+            Use stable, explicit names. Prefix generic tools with <code>office_</code> and app-specific tools with
+            <code>word_</code>, <code>excel_</code>, <code>powerpoint_</code> or <code>outlook_</code>.
+          </p>
+
+          <h3>Standard tool response envelope</h3>
+          <pre><code>{
+  "ok": true,
+  "app": "PowerPoint",
+  "documentId": "local-session:powerpoint:active",
+  "result": {},
+  "warnings": [],
+  "requiresConfirmation": false,
+  "auditId": "20260514-153500-00042"
+}</code></pre>
+
+          <h3>Error response envelope</h3>
+          <pre><code>{
+  "ok": false,
+  "errorCode": "NO_ACTIVE_DOCUMENT",
+  "message": "No active PowerPoint presentation is available.",
+  "recoverable": true,
+  "auditId": "20260514-153500-00043"
+}</code></pre>
+
+          <h3>Confirmation contract</h3>
+          <p>
+            Tools that can materially change a document should return a preview instead of directly applying the change unless
+            the request contains a valid confirmation token.
+          </p>
+
+          <pre><code>{
+  "ok": true,
+  "requiresConfirmation": true,
+  "confirmation": {
+    "confirmationId": "confirm-9f2a",
+    "summary": "Replace text in 3 shapes on slide 4.",
+    "diffPreview": [
+      {
+        "target": "slide:4/shape:Title 1",
+        "before": "Quarterly results",
+        "after": "Q3 performance summary"
+      }
+    ]
+  }
+}</code></pre>
+        </section>
+
+        <section id="tools">
+          <h2>7. Office tool catalogue</h2>
+
+          <h3>7.1 Generic Office tools</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Purpose</th>
+                <th>Mutation</th>
+                <th>Confirmation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>office_get_active_app</code></td>
+                <td>Return active Office host, document name and selection metadata.</td>
+                <td>No</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <td><code>office_get_document_context</code></td>
+                <td>Return bounded document context around the current selection or active item.</td>
+                <td>No</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <td><code>office_get_selection</code></td>
+                <td>Return current selected text, cells, shapes or email body fragment.</td>
+                <td>No</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <td><code>office_replace_selection</code></td>
+                <td>Replace the current selection with model-generated content.</td>
+                <td>Yes</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><code>office_add_comment</code></td>
+                <td>Add a comment to the current location or selected object.</td>
+                <td>Yes</td>
+                <td>Optional</td>
+              </tr>
+              <tr>
+                <td><code>office_export_context</code></td>
+                <td>Export bounded chunks for external analysis.</td>
+                <td>No</td>
+                <td>Optional, depending on sensitivity.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>7.2 Word tools</h3>
+          <pre><code>{
+  "name": "word_get_outline",
+  "description": "Returns headings, styles and paragraph ranges for the active Word document.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "maxDepth": { "type": "integer", "default": 3 }
+    }
+  }
+}</code></pre>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Purpose</th>
+                <th>Mutation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>word_get_outline</code></td><td>Return document headings and hierarchy.</td><td>No</td></tr>
+              <tr><td><code>word_get_paragraphs</code></td><td>Read paragraphs by range, heading or selection neighborhood.</td><td>No</td></tr>
+              <tr><td><code>word_rewrite_selection</code></td><td>Rewrite selected text with tracked-change style preview.</td><td>Yes</td></tr>
+              <tr><td><code>word_insert_after_heading</code></td><td>Insert generated text under a chosen heading.</td><td>Yes</td></tr>
+              <tr><td><code>word_add_review_comments</code></td><td>Add review comments instead of editing content.</td><td>Yes</td></tr>
+            </tbody>
+          </table>
+
+          <h3>7.3 Excel tools</h3>
+          <pre><code>{
+  "name": "excel_read_range",
+  "description": "Reads a bounded range from the active workbook.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["sheetName", "address"],
+    "properties": {
+      "sheetName": { "type": "string" },
+      "address": { "type": "string", "examples": ["A1:D20"] },
+      "includeFormulas": { "type": "boolean", "default": true },
+      "includeNumberFormats": { "type": "boolean", "default": false }
+    }
+  }
+}</code></pre>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Purpose</th>
+                <th>Mutation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>excel_get_workbook_map</code></td><td>Return sheets, tables, named ranges, used range sizes.</td><td>No</td></tr>
+              <tr><td><code>excel_read_range</code></td><td>Read cells, formulas and optional formatting from a bounded range.</td><td>No</td></tr>
+              <tr><td><code>excel_write_range</code></td><td>Write values to a bounded range.</td><td>Yes</td></tr>
+              <tr><td><code>excel_write_formula</code></td><td>Write formulas with preview and validation.</td><td>Yes</td></tr>
+              <tr><td><code>excel_create_table</code></td><td>Create a formatted Excel table from selected data.</td><td>Yes</td></tr>
+              <tr><td><code>excel_create_chart</code></td><td>Create a chart from a selected or specified range.</td><td>Yes</td></tr>
+            </tbody>
+          </table>
+
+          <h3>7.4 PowerPoint tools</h3>
+          <pre><code>{
+  "name": "powerpoint_get_deck_outline",
+  "description": "Returns slide titles, text placeholders, notes metadata and slide order.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "includeSpeakerNotes": { "type": "boolean", "default": false },
+      "includeHiddenSlides": { "type": "boolean", "default": false }
+    }
+  }
+}</code></pre>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Purpose</th>
+                <th>Mutation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>powerpoint_get_deck_outline</code></td><td>Return deck-level outline.</td><td>No</td></tr>
+              <tr><td><code>powerpoint_get_slide</code></td><td>Return text, notes and shape metadata for one slide.</td><td>No</td></tr>
+              <tr><td><code>powerpoint_update_shape_text</code></td><td>Update a specific shape's text with preview.</td><td>Yes</td></tr>
+              <tr><td><code>powerpoint_create_slide</code></td><td>Create a new slide from structured content.</td><td>Yes</td></tr>
+              <tr><td><code>powerpoint_update_speaker_notes</code></td><td>Create or update speaker notes for selected slides.</td><td>Yes</td></tr>
+              <tr><td><code>powerpoint_apply_outline</code></td><td>Generate a new deck section from an approved outline.</td><td>Yes</td></tr>
+            </tbody>
+          </table>
+
+          <h3>7.5 Outlook tools</h3>
+          <pre><code>{
+  "name": "outlook_draft_reply",
+  "description": "Creates a draft reply for the currently selected email thread. Does not send.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["tone", "keyPoints"],
+    "properties": {
+      "tone": { "type": "string", "enum": ["concise", "formal", "friendly", "technical"] },
+      "keyPoints": { "type": "array", "items": { "type": "string" } },
+      "includeThreadSummary": { "type": "boolean", "default": false }
+    }
+  }
+}</code></pre>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Purpose</th>
+                <th>Mutation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>outlook_get_current_item</code></td><td>Read selected email or appointment metadata and bounded body text.</td><td>No</td></tr>
+              <tr><td><code>outlook_summarize_thread</code></td><td>Return a structured summary of a mail conversation.</td><td>No</td></tr>
+              <tr><td><code>outlook_draft_reply</code></td><td>Create a draft reply. Does not send.</td><td>Yes</td></tr>
+              <tr><td><code>outlook_apply_category</code></td><td>Apply an Outlook category to selected item.</td><td>Yes</td></tr>
+              <tr><td><code>outlook_send_message</code></td><td>Send a drafted message.</td><td>Yes, external side effect</td></tr>
+            </tbody>
+          </table>
+
+          <div class="callout danger">
+            <strong>Policy:</strong> <code>outlook_send_message</code> must never execute from an LLM tool call alone.
+            It requires explicit user approval in the Outlook UI.
+          </div>
+        </section>
+
+        <section id="security">
+          <h2>8. Security model</h2>
+
+          <h3>MVP security posture</h3>
+          <ul>
+            <li>MCP server binds only to <code>127.0.0.1</code>.</li>
+            <li>No MCP authentication for local-only development.</li>
+            <li>No arbitrary shell execution, macro execution or raw COM dispatch exposed as tools.</li>
+            <li>Destructive operations return previews and require UI confirmation.</li>
+            <li>Tool outputs are bounded in size and avoid full-document export by default.</li>
+          </ul>
+
+          <h3>Production hardening</h3>
+          <ul>
+            <li>Generate a random per-session token at add-in startup.</li>
+            <li>Pass the token to Open WebUI as an MCP custom header or bearer token.</li>
+            <li>Rotate token whenever the Office session or MCP helper restarts.</li>
+            <li>Store no long-lived local secrets unless needed for managed deployment.</li>
+            <li>Add tool-level allowlists by Office host and user role.</li>
+            <li>Log every tool call with timestamp, chat/user correlation fields, document handle, mutation status and confirmation ID.</li>
+            <li>Block or redact sensitive data types before sending context to the model where policy requires it.</li>
+          </ul>
+
+          <h3>Threat model</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Threat</th>
+                <th>Risk</th>
+                <th>Mitigation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Local malicious process calls MCP endpoint</td>
+                <td>Medium if no token is used.</td>
+                <td>Use per-session token in production; bind localhost only; restrict tool set.</td>
+              </tr>
+              <tr>
+                <td>Model overwrites document content incorrectly</td>
+                <td>High for user trust.</td>
+                <td>Preview/diff, confirmation gate, undo support and audit log.</td>
+              </tr>
+              <tr>
+                <td>Prompt injection from document content</td>
+                <td>Medium to high.</td>
+                <td>Treat document content as untrusted data; system prompts must instruct model not to follow embedded instructions.</td>
+              </tr>
+              <tr>
+                <td>Email sent unintentionally</td>
+                <td>High external side effect.</td>
+                <td>Disable send in MVP or require manual Outlook confirmation.</td>
+              </tr>
+              <tr>
+                <td>Excessive context leakage</td>
+                <td>High depending on document sensitivity.</td>
+                <td>Bounded context extraction, explicit export tools, redaction hooks and configurable limits.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="data">
+          <h2>9. Data handling</h2>
+
+          <h3>Context selection rules</h3>
+          <ol>
+            <li>Prefer current selection.</li>
+            <li>If no selection exists, use active slide, active worksheet region, active Word section or selected Outlook item.</li>
+            <li>Never send entire workbooks, decks, documents or mailboxes by default.</li>
+            <li>Apply output limits per tool, for example 32 KB default and 256 KB maximum unless explicitly approved.</li>
+            <li>Return metadata separately from content to help the model choose follow-up tools.</li>
+          </ol>
+
+          <h3>Suggested context envelope</h3>
+          <pre><code>{
+  "app": "Excel",
+  "document": {
+    "name": "forecast.xlsx",
+    "readOnly": false,
+    "saved": true
+  },
+  "selection": {
+    "type": "range",
+    "sheet": "Q3 Forecast",
+    "address": "B2:G24"
+  },
+  "content": {
+    "format": "table-json",
+    "rows": []
+  },
+  "limits": {
+    "truncated": false,
+    "maxBytes": 32768
+  }
+}</code></pre>
+        </section>
+
+        <section id="ux">
+          <h2>10. User experience</h2>
+
+          <h3>Office ribbon</h3>
+          <ul>
+            <li><strong>Ask LLM</strong>: opens the task pane and sends current context.</li>
+            <li><strong>Summarize</strong>: summarizes current document, slide, range or email thread.</li>
+            <li><strong>Rewrite</strong>: rewrites selected text or selected objects.</li>
+            <li><strong>Generate</strong>: creates a slide, section, formula, table or draft reply.</li>
+            <li><strong>Review changes</strong>: shows pending model-proposed edits.</li>
+          </ul>
+
+          <h3>Task pane</h3>
+          <ul>
+            <li>Shows current Office context being shared.</li>
+            <li>Lets user choose whether to include selection, surrounding context, notes, formulas or comments.</li>
+            <li>Displays pending changes before applying them.</li>
+            <li>Shows audit details for the last tool calls.</li>
+          </ul>
+
+          <h3>Confirmation UX</h3>
+          <p>
+            The model can propose changes, but the add-in applies them only after user approval. For Word and PowerPoint,
+            show a before/after diff. For Excel, show affected ranges, formula changes and sample changed cells. For Outlook,
+            drafts may be created automatically, but sending requires manual approval.
+          </p>
+        </section>
+
+        <section id="implementation">
+          <h2>11. Implementation plan</h2>
+
+          <h3>Phase 0 — Spike</h3>
+          <ul>
+            <li>Create a minimal local MCP Streamable HTTP server exposing <code>office_get_active_app</code>.</li>
+            <li>Create one PowerPoint VSTO add-in that reports active presentation and selected slide.</li>
+            <li>Connect Open WebUI to the local MCP endpoint.</li>
+            <li>Validate Docker networking with <code>host.docker.internal</code> if Open WebUI runs in Docker.</li>
+          </ul>
+
+          <h3>Phase 1 — PowerPoint MVP</h3>
+          <ul>
+            <li>Implement <code>powerpoint_get_deck_outline</code>, <code>powerpoint_get_slide</code>, <code>powerpoint_update_shape_text</code> and <code>powerpoint_update_speaker_notes</code>.</li>
+            <li>Add diff preview for text changes.</li>
+            <li>Add local audit log.</li>
+            <li>Add basic task pane with context preview.</li>
+          </ul>
+
+          <h3>Phase 2 — Word MVP</h3>
+          <ul>
+            <li>Implement Word outline, selection read, rewrite selection and add comment tools.</li>
+            <li>Use Word comments or tracked changes for review-oriented workflows.</li>
+            <li>Add shared document context abstraction across Word and PowerPoint.</li>
+          </ul>
+
+          <h3>Phase 3 — Excel MVP</h3>
+          <ul>
+            <li>Implement workbook map, read range, write range and write formula tools.</li>
+            <li>Add range-size limits and formula validation.</li>
+            <li>Add confirmation preview for any write operation.</li>
+          </ul>
+
+          <h3>Phase 4 — Outlook MVP</h3>
+          <ul>
+            <li>Implement current item read, thread summary and draft reply tools.</li>
+            <li>Keep sending disabled or gated behind manual Outlook confirmation.</li>
+            <li>Add optional policy filter for recipient domains and attachments.</li>
+          </ul>
+
+          <h3>Phase 5 — Production hardening</h3>
+          <ul>
+            <li>Add per-session token authentication.</li>
+            <li>Add installer, auto-start, crash recovery and version reporting.</li>
+            <li>Add centralized policy and logging hooks.</li>
+            <li>Add DLP/redaction extension points.</li>
+            <li>Add admin-configurable tool allowlist.</li>
+          </ul>
+        </section>
+
+        <section id="testing">
+          <h2>12. Testing strategy</h2>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>Tests</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Tool schemas</td>
+                <td>Validate MCP tool inputs, required fields, enum values and response envelopes.</td>
+              </tr>
+              <tr>
+                <td>Office adapters</td>
+                <td>Unit-test serialization and mutation preview generation with mocked Office objects where possible.</td>
+              </tr>
+              <tr>
+                <td>VSTO integration</td>
+                <td>Manual and automated smoke tests in Word, Excel, PowerPoint and Outlook.</td>
+              </tr>
+              <tr>
+                <td>Safety gates</td>
+                <td>Verify destructive tools do not apply changes without confirmation tokens.</td>
+              </tr>
+              <tr>
+                <td>Prompt injection</td>
+                <td>Use documents containing adversarial instructions and verify tool policy remains enforced.</td>
+              </tr>
+              <tr>
+                <td>Open WebUI integration</td>
+                <td>Validate tool discovery, tool execution and error handling from chat.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="deployment">
+          <h2>13. Deployment</h2>
+
+          <h3>Developer deployment</h3>
+          <ul>
+            <li>Install VSTO add-ins through Visual Studio or ClickOnce for local testing.</li>
+            <li>Run MCP helper as a user-mode process started by the first Office add-in loaded.</li>
+            <li>Register MCP endpoint manually in Open WebUI External Tools.</li>
+          </ul>
+
+          <h3>Managed deployment</h3>
+          <ul>
+            <li>Package VSTO add-ins and MCP helper with a signed installer.</li>
+            <li>Auto-start MCP helper on Office launch only, not at system boot unless required.</li>
+            <li>Use fixed localhost port range or dynamic port discovery through a local manifest file.</li>
+            <li>Distribute Open WebUI tool configuration through admin documentation or deployment automation.</li>
+            <li>Sign binaries and installer packages.</li>
+          </ul>
+
+          <h3>Versioning</h3>
+          <p>
+            Expose a <code>office_get_harness_status</code> tool returning add-in versions, MCP server version, enabled tools,
+            active Office hosts and policy version. This helps debug Open WebUI tool mismatch issues.
+          </p>
+        </section>
+
+        <section id="risks">
+          <h2>14. Risks and mitigations</h2>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Risk</th>
+                <th>Impact</th>
+                <th>Mitigation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>VSTO limits platform support to Windows desktop Office.</td>
+                <td>Mac/Web users excluded from MVP.</td>
+                <td>Accept for MVP; design document APIs so a future Office Web Add-in can reuse server-side logic.</td>
+              </tr>
+              <tr>
+                <td>Open WebUI cannot reach local MCP server when hosted remotely.</td>
+                <td>Pattern B breaks for remote Open WebUI.</td>
+                <td>Use local Open WebUI, Docker host routing, managed local agent or reverse tunnel with auth.</td>
+              </tr>
+              <tr>
+                <td>Office COM automation can be fragile across app states.</td>
+                <td>Tool calls may fail depending on modal dialogs or protected documents.</td>
+                <td>Detect unsupported states and return recoverable MCP errors.</td>
+              </tr>
+              <tr>
+                <td>LLM generates poor edits.</td>
+                <td>User trust and document quality risk.</td>
+                <td>Use previews, comments, tracked changes and clear undo support.</td>
+              </tr>
+              <tr>
+                <td>Large documents exceed useful model context.</td>
+                <td>Latency, cost and degraded answers.</td>
+                <td>Chunking, targeted retrieval tools and bounded context extraction.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="decisions">
+          <h2>15. Decisions and open questions</h2>
+
+          <h3>Proposed decisions</h3>
+          <ul>
+            <li>Use Pattern B: local MCP server exposed to Open WebUI.</li>
+            <li>Use VSTO for deep Office desktop integration.</li>
+            <li>Use a helper process for MCP rather than embedding the MCP endpoint in each add-in.</li>
+            <li>Start MVP with PowerPoint, then Word, then Excel, then Outlook.</li>
+            <li>Allow unauthenticated localhost-only MCP for the spike; add per-session token before production.</li>
+            <li>Never expose arbitrary COM execution, shell execution or macro execution as model-callable tools.</li>
+          </ul>
+
+          <h3>Open questions</h3>
+          <ul>
+            <li>Will Open WebUI run locally on the user's machine, in Docker, or on a remote shared server?</li>
+            <li>Should the MCP server be one per user session or one per Office process?</li>
+            <li>Do we need central audit logging from day one?</li>
+            <li>Which identity correlation fields should Open WebUI pass to the local MCP server?</li>
+            <li>What is the first production-grade target workflow: slide generation, Word review, Excel formula help or Outlook drafting?</li>
+            <li>Which documents or email types must be blocked from model context export?</li>
+          </ul>
+        </section>
+
+        <section id="references">
+          <h2>16. References</h2>
+          <p class="small">
+            Links verified during preparation of this draft. Re-check them during implementation because Open WebUI MCP support
+            and Office extensibility guidance can evolve.
+          </p>
+          <ul>
+            <li><a href="https://docs.openwebui.com/features/extensibility/mcp/">Open WebUI: Model Context Protocol (MCP)</a></li>
+            <li><a href="https://docs.openwebui.com/features/extensibility/plugin/tools/openapi-servers/mcp/">Open WebUI: MCP Support via mcpo bridge</a></li>
+            <li><a href="https://docs.openwebui.com/reference/api-endpoints/">Open WebUI: API Endpoints and bearer authentication</a></li>
+            <li><a href="https://docs.openwebui.com/features/authentication-access/auth/sso/">Open WebUI: SSO / OAuth / OIDC</a></li>
+            <li><a href="https://learn.microsoft.com/en-us/visualstudio/vsto/create-vsto-add-ins-for-office-by-using-visual-studio?view=visualstudio">Microsoft: Create VSTO Add-ins for Office by using Visual Studio</a></li>
+            <li><a href="https://learn.microsoft.com/en-us/visualstudio/vsto/getting-started-programming-vsto-add-ins?view=visualstudio">Microsoft: Get started programming VSTO Add-ins</a></li>
+            <li><a href="https://learn.microsoft.com/en-us/visualstudio/vsto/office-solutions-development-overview-vsto?view=visualstudio">Microsoft: Office solutions development overview (VSTO)</a></li>
+          </ul>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      Technical design draft for implementation planning. Review security, deployment and data-handling sections before production use.
+    </footer>
+  </div>
+</body>
+</html>
