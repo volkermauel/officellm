@@ -42,11 +42,11 @@ For **mutation tools** (`update_shape_text`, `update_speaker_notes`), step 2–4
 
 ## Components
 
-| Component             | Language        | Description                                                                                                                               |
-| --------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **MCP Server**           | C# (.NET 8)     | Self-contained executable exposing MCP tools over Streamable HTTP. Command dispatch, instance registry, confirmation flow, audit logging. |
-| **Unified Office Add-in** | TypeScript/HTML | Single Office JS Add-in that auto-detects host (Word/Excel/PowerPoint/Outlook) via `Office.onReady()`. One manifest for all hosts. |
-| **Express Server**       | Node.js         | Serves static add-in files + dynamic `manifest.xml` (URLs from Host header). Docker/K8s deployment.                                       |
+| Component                 | Language        | Description                                                                                                                               |
+| ------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **MCP Server**            | C# (.NET 8)     | Self-contained executable exposing MCP tools over Streamable HTTP. Command dispatch, instance registry, confirmation flow, audit logging. |
+| **Unified Office Add-in** | TypeScript/HTML | Single Office JS Add-in that auto-detects host (Word/Excel/PowerPoint/Outlook) via `Office.onReady()`. One manifest for all hosts.        |
+| **Express Server**        | Node.js         | Serves static add-in files + dynamic `manifest.xml` (URLs from Host header). Docker/K8s deployment.                                       |
 
 ## Project Structure
 
@@ -162,10 +162,13 @@ These are hard-won lessons from building this project. Follow them to avoid know
 ### Office JS API
 
 - **`PowerPoint.run()` is lowercase** — not `Run()`, `Excel.Run()`, etc. The Office JS API uses camelCase (`run`, not `Run`). A typo here silently fails with "PowerPoint.run() not available" because `PowerPoint.Run` is `undefined`.
-- **`context.load(collection, ["items"])`** — always load `items` on collections. Do NOT use `"notCoveredByParallelization"` or other VSTO-era properties; those don't exist in Office JS.
-- **`context.load(obj, ["id", "name"])`** — pass property names as an array of strings, not a comma-separated string.
+- **Use slash-separated load paths** — `slide.load("shapes/items/id,name,textFrame/textRange/text")` loads nested collections and their properties in one call. This is the official pattern from Microsoft docs.
+- **`presentation.load("slides")`** — loads the slides navigation property. After sync, `slides.items` is available.
+- **`shape.textFrame` throws `InvalidArgument`** if the shape has no text frame. Always wrap in try/catch.
+- **`context.load(collection, ["items"])` is INVALID** — use `presentation.load("slides")` or `slide.load("shapes/items/$none")` instead.
 - **`@types/office-js` is incomplete** — many newer PowerPoint context types lack type definitions. Use `any` casts and `PowerPoint.run(async (context: any) => ...)`.
 - **`Office.context.document.url`** — gives the document URL/path (if available). Use this for the real document name in `getOfficeState()`.
+- **Official API reference**: https://learn.microsoft.com/en-us/javascript/api/powerpoint?view=powerpoint-js-preview
 
 ### MCP Protocol
 
