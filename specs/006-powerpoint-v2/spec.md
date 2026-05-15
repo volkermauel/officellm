@@ -31,27 +31,29 @@ LLM Client ──► MCP Server ──► Add-in (powerpoint-commands.ts)
 
 The Office JS API exposes these properties per shape. We load them via `shape.load(...)` and `ctx.sync()` before reading.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `id` | string | Unique shape identifier within slide |
-| `name` | string | Human-readable name (e.g., "Title 1") |
-| `type` | ShapeType enum | `Image`, `TextBox`, `Table`, `Group`, `Line`, `GeometricShape`, `Chart`, etc. |
-| `left` | number | X position in points |
-| `top` | number | Y position in points |
-| `width` | number | Width in points |
-| `height` | number | Height in points |
-| `rotation` | number | Rotation in degrees |
-| `fill` | ShapeFill | Fill formatting (`foregroundColor`, `transparency`) |
-| `textFrame` | TextFrame | Text content (throws on non-text shapes — use `getTextFrameOrNullObject()`) |
-| `textFrame.textRange.font` | TextRange.font | `name`, `size`, `bold`, `italic`, `color`, `underline`, `strikethrough` |
-| `textFrame.textRange.paragraphFormat` | ParagraphFormat | `horizontalAlignment`, `bulletFormat` |
+| Property                              | Type            | Description                                                                   |
+| ------------------------------------- | --------------- | ----------------------------------------------------------------------------- |
+| `id`                                  | string          | Unique shape identifier within slide                                          |
+| `name`                                | string          | Human-readable name (e.g., "Title 1")                                         |
+| `type`                                | ShapeType enum  | `Image`, `TextBox`, `Table`, `Group`, `Line`, `GeometricShape`, `Chart`, etc. |
+| `left`                                | number          | X position in points                                                          |
+| `top`                                 | number          | Y position in points                                                          |
+| `width`                               | number          | Width in points                                                               |
+| `height`                              | number          | Height in points                                                              |
+| `rotation`                            | number          | Rotation in degrees                                                           |
+| `fill`                                | ShapeFill       | Fill formatting (`foregroundColor`, `transparency`)                           |
+| `textFrame`                           | TextFrame       | Text content (throws on non-text shapes — use `getTextFrameOrNullObject()`)   |
+| `textFrame.textRange.font`            | TextRange.font  | `name`, `size`, `bold`, `italic`, `color`, `underline`, `strikethrough`       |
+| `textFrame.textRange.paragraphFormat` | ParagraphFormat | `horizontalAlignment`, `bulletFormat`                                         |
 
 **Image export APIs:**
+
 - `slide.getImageAsBase64(options?)` → base64 PNG of rendered slide
 - `shape.getImageAsBase64(options?)` → base64 PNG of rendered shape
 - Options: `{ width?, height? }` — preserves aspect ratio
 
 **Shape creation APIs:**
+
 - `shapes.addTextBox(text, { left, top, width, height })`
 - `shapes.addPicture(base64, { left, top, width, height })`
 - `shapes.addTable(rowCount, colCount, { left, top, width, height })`
@@ -59,6 +61,7 @@ The Office JS API exposes these properties per shape. We load them via `shape.lo
 - `shapes.addLine({ left, top, width, height })`
 
 **Table API:**
+
 - `shape.getTable()` → `Table` with `rowCount`, `columnCount`
 - `table.getCell(row, col).textFrame.textRange.text` → cell text
 
@@ -198,35 +201,35 @@ A user asks "Generate speaker notes for slide 3 based on the content." The LLM w
 
 ### Read Tools
 
-| Tool | Parameters | Returns |
-|------|-----------|---------|
-| `powerpoint_get_deck_outline` | `instanceId` (required) | `{ slides: [{ index, title, shapes: [{ id, name, type, left, top, width, height }] }] }` |
-| `powerpoint_get_slide` | `instanceId`, `slideIndex` | `{ slideIndex, title, shapes: [{ id, name, type, left, top, width, height, rotation, text?, font?, fill?, alignment? }] }` |
-| `powerpoint_get_slide_image` | `instanceId`, `slideIndex`, `width?`, `height?` | `{ slideIndex, image: "data:image/png;base64,..." }` |
-| `powerpoint_get_shape_image` | `instanceId`, `slideIndex`, `shapeId`, `width?`, `height?` | `{ slideIndex, shapeId, image: "data:image/png;base64,..." }` |
-| `powerpoint_get_table` | `instanceId`, `slideIndex`, `shapeId` | `{ slideIndex, shapeId, rowCount, columnCount, cells: string[][] }` |
-| `powerpoint_get_selection` | `instanceId` | `{ type: "text" \| "shapes" \| "none", text?, shapeIds?, slideIndex, font? }` |
-| `powerpoint_get_speaker_notes` | `instanceId`, `slideIndex?`, `slideRange?` | `{ notes: [{ slideIndex, notes: string }] }` |
+| Tool                           | Parameters                                                 | Returns                                                                                                                    |
+| ------------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `powerpoint_get_deck_outline`  | `instanceId` (required)                                    | `{ slides: [{ index, title, shapes: [{ id, name, type, left, top, width, height }] }] }`                                   |
+| `powerpoint_get_slide`         | `instanceId`, `slideIndex`                                 | `{ slideIndex, title, shapes: [{ id, name, type, left, top, width, height, rotation, text?, font?, fill?, alignment? }] }` |
+| `powerpoint_get_slide_image`   | `instanceId`, `slideIndex`, `width?`, `height?`            | `{ slideIndex, image: "data:image/png;base64,..." }`                                                                       |
+| `powerpoint_get_shape_image`   | `instanceId`, `slideIndex`, `shapeId`, `width?`, `height?` | `{ slideIndex, shapeId, image: "data:image/png;base64,..." }`                                                              |
+| `powerpoint_get_table`         | `instanceId`, `slideIndex`, `shapeId`                      | `{ slideIndex, shapeId, rowCount, columnCount, cells: string[][] }`                                                        |
+| `powerpoint_get_selection`     | `instanceId`                                               | `{ type: "text" \| "shapes" \| "none", text?, shapeIds?, slideIndex, font? }`                                              |
+| `powerpoint_get_speaker_notes` | `instanceId`, `slideIndex?`, `slideRange?`                 | `{ notes: [{ slideIndex, notes: string }] }`                                                                               |
 
 ### Write Tools
 
-| Tool | Parameters | Returns |
-|------|-----------|---------|
-| `powerpoint_update_shape_text` | `instanceId`, `slideIndex`, `shapeId`, `text` | `{ slideIndex, shapeId, newText }` |
+| Tool                                 | Parameters                                                                                                                                       | Returns                                      |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `powerpoint_update_shape_text`       | `instanceId`, `slideIndex`, `shapeId`, `text`                                                                                                    | `{ slideIndex, shapeId, newText }`           |
 | `powerpoint_update_shape_properties` | `instanceId`, `slideIndex`, `shapeId`, `left?`, `top?`, `width?`, `height?`, `rotation?`, `fontName?`, `fontSize?`, `bold?`, `italic?`, `color?` | `{ slideIndex, shapeId, updated: string[] }` |
-| `powerpoint_update_speaker_notes` | `instanceId`, `slideIndex`, `notes` | `{ slideIndex, newNotes }` |
-| `powerpoint_add_textbox` | `instanceId`, `slideIndex`, `text`, `left`, `top`, `width`, `height` | `{ slideIndex, shapeId, name }` |
-| `powerpoint_add_image` | `instanceId`, `slideIndex`, `imageBase64`, `left`, `top`, `width?`, `height?` | `{ slideIndex, shapeId, name }` |
-| `powerpoint_add_table` | `instanceId`, `slideIndex`, `rows`, `columns`, `left`, `top`, `width?`, `height?` | `{ slideIndex, shapeId, name }` |
-| `powerpoint_delete_shape` | `instanceId`, `slideIndex`, `shapeId` | `{ slideIndex, shapeId, deleted: true }` |
+| `powerpoint_update_speaker_notes`    | `instanceId`, `slideIndex`, `notes`                                                                                                              | `{ slideIndex, newNotes }`                   |
+| `powerpoint_add_textbox`             | `instanceId`, `slideIndex`, `text`, `left`, `top`, `width`, `height`                                                                             | `{ slideIndex, shapeId, name }`              |
+| `powerpoint_add_image`               | `instanceId`, `slideIndex`, `imageBase64`, `left`, `top`, `width?`, `height?`                                                                    | `{ slideIndex, shapeId, name }`              |
+| `powerpoint_add_table`               | `instanceId`, `slideIndex`, `rows`, `columns`, `left`, `top`, `width?`, `height?`                                                                | `{ slideIndex, shapeId, name }`              |
+| `powerpoint_delete_shape`            | `instanceId`, `slideIndex`, `shapeId`                                                                                                            | `{ slideIndex, shapeId, deleted: true }`     |
 
 ### Slide Management Tools
 
-| Tool | Parameters | Returns |
-|------|-----------|---------|
-| `powerpoint_add_slide` | `instanceId`, `atIndex?` | `{ slideIndex, slideId }` |
-| `powerpoint_delete_slide` | `instanceId`, `slideIndex` | `{ slideIndex, deleted: true }` |
-| `powerpoint_move_slide` | `instanceId`, `fromIndex`, `toIndex` | `{ fromIndex, toIndex, slideId }` |
+| Tool                      | Parameters                           | Returns                           |
+| ------------------------- | ------------------------------------ | --------------------------------- |
+| `powerpoint_add_slide`    | `instanceId`, `atIndex?`             | `{ slideIndex, slideId }`         |
+| `powerpoint_delete_slide` | `instanceId`, `slideIndex`           | `{ slideIndex, deleted: true }`   |
+| `powerpoint_move_slide`   | `instanceId`, `fromIndex`, `toIndex` | `{ fromIndex, toIndex, slideId }` |
 
 ## Implementation Notes
 

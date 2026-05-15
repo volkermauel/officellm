@@ -29,13 +29,13 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 
 ## Phases
 
-| #   | Spec                                  | Branch               | Scope                                                                                                                   |
-| --- | ------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 0   | [Spike](001-spike/)                   | `001-spike`          | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                       |
-| 1   | [PowerPoint MVP](002-powerpoint-mvp/) | `002-powerpoint-mvp` | Deck outline, slide read, shape update, speaker notes, audit log, task pane                                             |
-| 2   | [Word MVP](003-word-mvp/)             | `003-word-mvp`       | Outline, paragraphs, rewrite selection (tracked changes), review comments, shared context abstraction                   |
-| 3   | [Excel MVP](004-excel-mvp/)           | `004-excel-mvp`      | Workbook map, read/write range, write formula, create table, range limits, formula validation                           |
-| 4   | [Outlook MVP](005-outlook-mvp/)       | `005-outlook-mvp`    | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate |
+| #   | Spec                                  | Branch               | Scope                                                                                                                        |
+| --- | ------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 0   | [Spike](001-spike/)                   | `001-spike`          | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                            |
+| 1   | [PowerPoint MVP](002-powerpoint-mvp/) | `002-powerpoint-mvp` | Deck outline, slide read, shape update, speaker notes, audit log, task pane                                                  |
+| 2   | [Word MVP](003-word-mvp/)             | `003-word-mvp`       | Outline, paragraphs, rewrite selection (tracked changes), review comments, shared context abstraction                        |
+| 3   | [Excel MVP](004-excel-mvp/)           | `004-excel-mvp`      | Workbook map, read/write range, write formula, create table, range limits, formula validation                                |
+| 4   | [Outlook MVP](005-outlook-mvp/)       | `005-outlook-mvp`    | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate      |
 | 5   | [PowerPoint v2](006-powerpoint-v2/)   | `006-powerpoint-v2`  | Full shape properties, image export, table reading, selection context, direct write operations, shape CRUD, slide management |
 
 ## Progression

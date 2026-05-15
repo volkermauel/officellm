@@ -231,7 +231,9 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 		await ctx.sync();
 
 		if (slideIndex < 0 || slideIndex >= pres.slides.items.length) {
-			return { error: `Slide index ${slideIndex} out of range (0-${pres.slides.items.length - 1})` };
+			return {
+				error: `Slide index ${slideIndex} out of range (0-${pres.slides.items.length - 1})`,
+			};
 		}
 
 		const slide = pres.slides.items[slideIndex];
@@ -252,7 +254,10 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 		for (const s of slide.shapes.items) {
 			// Text frame
 			const tf = s.getTextFrameOrNullObject();
-			ctx.load(tf, "isNullObject,textRange/text,textRange/font/name,textRange/font/size,textRange/font/bold,textRange/font/italic,textRange/font/color");
+			ctx.load(
+				tf,
+				"isNullObject,textRange/text,textRange/font/name,textRange/font/size,textRange/font/bold,textRange/font/italic,textRange/font/color",
+			);
 			textFrameData.push(tf);
 
 			// Fill
@@ -315,7 +320,11 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 }
 
 async function handleGetSlideImage(args: unknown): Promise<unknown> {
-	const config = args as { slideIndex?: number; width?: number; height?: number };
+	const config = args as {
+		slideIndex?: number;
+		width?: number;
+		height?: number;
+	};
 	const slideIndex = config.slideIndex ?? 0;
 
 	return runInPowerPoint(async (ctx) => {
@@ -343,7 +352,12 @@ async function handleGetSlideImage(args: unknown): Promise<unknown> {
 }
 
 async function handleGetShapeImage(args: unknown): Promise<unknown> {
-	const config = args as { slideIndex?: number; shapeId?: string; width?: number; height?: number };
+	const config = args as {
+		slideIndex?: number;
+		shapeId?: string;
+		width?: number;
+		height?: number;
+	};
 	const slideIndex = config.slideIndex ?? 0;
 	const shapeId = config.shapeId ?? "";
 
@@ -491,7 +505,9 @@ async function handleGetSelection(_args: unknown): Promise<unknown> {
 		// Try to get selected text range
 		try {
 			const textRange = pres.getSelectedTextRange();
-			textRange.load("text,font/name,font/size,font/bold,font/italic,font/color");
+			textRange.load(
+				"text,font/name,font/size,font/bold,font/italic,font/color",
+			);
 
 			const parentTf = textRange.getParentTextFrame();
 			const parentShape = parentTf.getParentShape();
@@ -569,7 +585,9 @@ async function handleGetSpeakerNotes(args: unknown): Promise<unknown> {
 					indices.push(i);
 				}
 			} else {
-				return { error: `Invalid slideRange format: '${config.slideRange}'. Use '2-5'.` };
+				return {
+					error: `Invalid slideRange format: '${config.slideRange}'. Use '2-5'.`,
+				};
 			}
 		} else {
 			// Default: all slides
@@ -617,7 +635,11 @@ async function handleGetSpeakerNotes(args: unknown): Promise<unknown> {
 // ── Write tools ─────────────────────────────────────────────────
 
 async function handleUpdateShapeText(args: unknown): Promise<unknown> {
-	const config = args as { slideIndex?: number; shapeId?: string; text?: string };
+	const config = args as {
+		slideIndex?: number;
+		shapeId?: string;
+		text?: string;
+	};
 	const { slideIndex = 0, shapeId = "", text = "" } = config;
 
 	return runInPowerPoint(async (ctx) => {
@@ -652,7 +674,9 @@ async function handleUpdateShapeText(args: unknown): Promise<unknown> {
 		await ctx.sync();
 
 		if (tf.isNullObject) {
-			return { error: `Shape '${shapeId}' does not support text (type: image/table/etc)` };
+			return {
+				error: `Shape '${shapeId}' does not support text (type: image/table/etc)`,
+			};
 		}
 
 		// Set the text
@@ -708,26 +732,61 @@ async function handleUpdateShapeProperties(args: unknown): Promise<unknown> {
 		const updated: string[] = [];
 
 		// Position and size
-		if (config.left !== undefined) { shape.left = config.left; updated.push("left"); }
-		if (config.top !== undefined) { shape.top = config.top; updated.push("top"); }
-		if (config.width !== undefined) { shape.width = config.width; updated.push("width"); }
-		if (config.height !== undefined) { shape.height = config.height; updated.push("height"); }
-		if (config.rotation !== undefined) { shape.rotation = config.rotation; updated.push("rotation"); }
+		if (config.left !== undefined) {
+			shape.left = config.left;
+			updated.push("left");
+		}
+		if (config.top !== undefined) {
+			shape.top = config.top;
+			updated.push("top");
+		}
+		if (config.width !== undefined) {
+			shape.width = config.width;
+			updated.push("width");
+		}
+		if (config.height !== undefined) {
+			shape.height = config.height;
+			updated.push("height");
+		}
+		if (config.rotation !== undefined) {
+			shape.rotation = config.rotation;
+			updated.push("rotation");
+		}
 
 		// Font properties
-		if (config.fontName !== undefined || config.fontSize !== undefined ||
-			config.bold !== undefined || config.italic !== undefined || config.color !== undefined) {
+		if (
+			config.fontName !== undefined ||
+			config.fontSize !== undefined ||
+			config.bold !== undefined ||
+			config.italic !== undefined ||
+			config.color !== undefined
+		) {
 			const tf = shape.getTextFrameOrNullObject();
 			ctx.load(tf, "isNullObject");
 			await ctx.sync();
 
 			if (!tf.isNullObject) {
 				const font = tf.textRange.font;
-				if (config.fontName !== undefined) { font.name = config.fontName; updated.push("fontName"); }
-				if (config.fontSize !== undefined) { font.size = config.fontSize; updated.push("fontSize"); }
-				if (config.bold !== undefined) { font.bold = config.bold; updated.push("bold"); }
-				if (config.italic !== undefined) { font.italic = config.italic; updated.push("italic"); }
-				if (config.color !== undefined) { font.color = config.color; updated.push("color"); }
+				if (config.fontName !== undefined) {
+					font.name = config.fontName;
+					updated.push("fontName");
+				}
+				if (config.fontSize !== undefined) {
+					font.size = config.fontSize;
+					updated.push("fontSize");
+				}
+				if (config.bold !== undefined) {
+					font.bold = config.bold;
+					updated.push("bold");
+				}
+				if (config.italic !== undefined) {
+					font.italic = config.italic;
+					updated.push("italic");
+				}
+				if (config.color !== undefined) {
+					font.color = config.color;
+					updated.push("color");
+				}
 			}
 		}
 
@@ -773,7 +832,14 @@ async function handleAddTextbox(args: unknown): Promise<unknown> {
 		width?: number;
 		height?: number;
 	};
-	const { slideIndex = 0, text = "", left = 100, top = 100, width = 300, height = 100 } = config;
+	const {
+		slideIndex = 0,
+		text = "",
+		left = 100,
+		top = 100,
+		width = 300,
+		height = 100,
+	} = config;
 
 	return runInPowerPoint(async (ctx) => {
 		const pres = ctx.presentation;
@@ -848,7 +914,13 @@ async function handleAddTable(args: unknown): Promise<unknown> {
 		width?: number;
 		height?: number;
 	};
-	const { slideIndex = 0, rows = 2, columns = 2, left = 100, top = 100 } = config;
+	const {
+		slideIndex = 0,
+		rows = 2,
+		columns = 2,
+		left = 100,
+		top = 100,
+	} = config;
 
 	return runInPowerPoint(async (ctx) => {
 		const pres = ctx.presentation;
@@ -935,9 +1007,10 @@ async function handleAddSlide(args: unknown): Promise<unknown> {
 		await ctx.sync();
 
 		// The new slide is at the specified index (or end)
-		const newIndex = config.atIndex !== undefined
-			? Math.min(config.atIndex, pres.slides.items.length - 1)
-			: pres.slides.items.length - 1;
+		const newIndex =
+			config.atIndex !== undefined
+				? Math.min(config.atIndex, pres.slides.items.length - 1)
+				: pres.slides.items.length - 1;
 
 		const newSlide = pres.slides.items[newIndex];
 		newSlide.load("id");
