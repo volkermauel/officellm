@@ -20,8 +20,8 @@ public static class McpToolEngine
     public static object[] GetToolDefinitions() => [
         new
         {
-            name = "office_get_active_app",
-            description = "Return active Office host, document name and selection metadata.",
+            name = "office_get_active_apps",
+            description = "Returns a list of all registered Office instances (PowerPoint, Word, Excel, Outlook) with their document names. Use this to discover which documents are open and let the user choose which one to work with.",
             inputSchema = new
             {
                 type = "object",
@@ -32,7 +32,7 @@ public static class McpToolEngine
         new
         {
             name = "powerpoint_get_deck_outline",
-            description = "Returns slide titles, text placeholders, notes metadata and slide order.",
+            description = "Returns the full slide deck outline with titles and text content for each slide. Use office_get_active_apps first to find the right instanceId.",
             inputSchema = new
             {
                 type = "object",
@@ -48,7 +48,7 @@ public static class McpToolEngine
         new
         {
             name = "powerpoint_get_slide",
-            description = "Return text, notes and shape metadata for one slide.",
+            description = "Returns all shapes with their text content for a single slide. IMPORTANT: You MUST provide slideIndex (zero-based). Use powerpoint_get_deck_outline first to see all slide numbers.",
             inputSchema = new
             {
                 type = "object",
@@ -140,8 +140,11 @@ public static class McpToolEngine
         // Route to appropriate handler
         switch (name)
         {
+            case "office_get_active_apps":
+                return HandleGetActiveApps();
+
             case "office_get_active_app":
-                return await HandleGetActiveApp(instanceId, inputs);
+                return HandleGetActiveApps();
 
             case "powerpoint_get_deck_outline":
                 return await HandleGetDeckOutline(instanceId, args, inputs);
@@ -164,38 +167,28 @@ public static class McpToolEngine
         }
     }
 
-    private static async Task<object> HandleGetActiveApp(string instanceId, string inputs)
+    private static object HandleGetActiveApps()
     {
         var instances = _registry.GetActiveInstances();
-        if (!instances.Any())
-        {
-            _auditLog.Log(new AuditEntry
-            {
-                ToolName = "office_get_active_app",
-                InstanceId = instanceId,
-                Inputs = inputs,
-                Outcome = "error",
-                Error = "No instances registered"
-            });
-
-            return new
-            {
-                content = new[] { new { type = "text", text = "No Office instances registered. Open PowerPoint and load the add-in." } },
-                isError = true
-            };
-        }
 
         _auditLog.Log(new AuditEntry
         {
-            ToolName = "office_get_active_app",
-            InstanceId = instanceId,
-            Inputs = inputs,
+            ToolName = "office_get_active_apps",
+            InstanceId = "",
+            Inputs = "",
             Outcome = "success"
         });
 
+        var appList = instances.Select(i => new
+        {
+            instanceId = i.InstanceId,
+            appName = i.AppName,
+            documentName = i.DocumentName
+        }).ToList();
+
         return new
         {
-            content = new[] { new { type = "text", text = JsonSerializer.Serialize(new { instanceId, appName = "PowerPoint" }) } },
+            content = new[] { new { type = "text", text = JsonSerializer.Serialize(new { apps = appList, total = appList.Count }, new JsonSerializerOptions { WriteIndented = true }) } },
             isError = false
         };
     }

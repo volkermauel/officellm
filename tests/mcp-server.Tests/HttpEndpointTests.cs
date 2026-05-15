@@ -147,9 +147,9 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var paths = body.GetProperty("paths");
         Assert.True(paths.EnumerateObject().Any(), "OpenAPI spec should have at least one path");
 
-        // Must have /api/office_get_active_app
-        Assert.True(paths.TryGetProperty("/api/office_get_active_app", out _),
-            "Should have /api/office_get_active_app path");
+        // Must have /api/office_get_active_apps
+        Assert.True(paths.TryGetProperty("/api/office_get_active_apps", out _),
+            "Should have /api/office_get_active_apps path");
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var expectedPaths = new[]
         {
-            "/api/office_get_active_app",
+            "/api/office_get_active_apps",
             "/api/powerpoint_get_deck_outline",
             "/api/powerpoint_get_slide",
             "/api/powerpoint_update_shape_text",
@@ -207,7 +207,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task ApiBridge_OfficeGetActiveApp_NoInstances_ReturnsError()
     {
-        var response = await _client.PostAsJsonAsync("/api/office_get_active_app", new { });
+        var response = await _client.PostAsJsonAsync("/api/office_get_active_apps", new { });
 
         response.EnsureSuccessStatusCode(); // 200 with error payload
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -230,7 +230,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task ApiBridge_InvalidJson_Returns400()
     {
         var content = new StringContent("not json", System.Text.Encoding.UTF8, "application/json");
-        var response = await _client.PostAsync("/api/office_get_active_app", content);
+        var response = await _client.PostAsync("/api/office_get_active_apps", content);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -302,7 +302,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             method = "tools/call",
             @params = new
             {
-                name = "office_get_active_app",
+                name = "office_get_active_apps",
                 arguments = new { }
             }
         });

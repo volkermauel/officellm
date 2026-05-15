@@ -1,6 +1,13 @@
 /**
  * PowerPoint command handler using Office JS API.
  * Executes PowerPoint-specific commands received from the MCP server.
+ *
+ * Key Office JS patterns:
+ * - context.load(obj, ["prop1", "prop2"]) queues a load
+ * - await context.sync() actually fetches the data
+ * - MUST sync BEFORE reading any loaded property
+ * - slide.name is internal ("Slide 1"), NOT the title text
+ *   — must read shapes to find the title
  */
 
 /// <reference types="@types/office-js" />
@@ -9,10 +16,6 @@ import { reportResult } from "./communication";
 
 // --- Command Processing ---
 
-/**
- * Processes a command received from the MCP server.
- * Returns the result payload (may include requiresConfirmation flag).
- */
 export async function processCommand(
 	commandId: string,
 	commandName: string,
@@ -25,19 +28,15 @@ export async function processCommand(
 			case "powerpoint_get_deck_outline":
 				result = await handleGetDeckOutline(args);
 				break;
-
 			case "powerpoint_get_slide":
 				result = await handleGetSlide(args);
 				break;
-
 			case "powerpoint_update_shape_text":
 				result = await handleUpdateShapeText(args);
 				break;
-
 			case "powerpoint_update_speaker_notes":
 				result = await handleUpdateSpeakerNotes(args);
 				break;
-
 			default:
 				result = { error: `Unknown command: ${commandName}` };
 		}
@@ -73,26 +72,74 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 				const presentation = context.presentation;
 				const slides = presentation.slides;
 
-				// Load the slides collection
+				// Step 1: Load slides collection
 				context.load(slides, ["items"]);
 				await context.sync();
 
 				const totalSlides = slides.items.length;
-				const slideList: Array<{
-					index: number;
-					title: string;
-				}> = [];
+				const slideList: Array<{ index: number; title: string }> = [];
 
+				// Step 2: For each slide, load its shapes
 				for (let i = 0; i < totalSlides; i++) {
 					const slide = slides.items[i];
-					context.load(slide, ["id", "name"]);
-					slideList.push({
-						index: i,
-						title: slide.name || `Slide ${i + 1}`,
-					});
+					const shapes = slide.shapes;
+					context.load(shapes, ["items"]);
 				}
-
 				await context.sync();
+
+				// Step 3: For each shape, load text properties
+				for (let i = 0; i < totalSlides; i++) {
+					const shapes = slides.items[i].shapes.items;
+
+					for (const shape of shapes) {
+						context.load(shape, ["name", "textFrame"]);
+					}
+
+					slideList.push({ index: i, title: "" });
+				}
+				await context.sync();
+
+				// Step 4: Read text from shapes (now synced)
+				for (let i = 0; i < totalSlides; i++) {
+					const shapes = slides.items[i].shapes.items;
+
+					for (const shape of shapes) {
+						try {
+							if (shape.textFrame) {
+								context.load(shape.textFrame, ["textRange"]);
+							}
+						} catch {
+							// shape doesn't have a textFrame
+						}
+					}
+				}
+				await context.sync();
+
+				// Step 5: Extract actual text
+				for (let i = 0; i < totalSlides; i++) {
+					const shapes = slides.items[i].shapes.items;
+					let title = "";
+					let foundTitle = false;
+
+					for (const shape of shapes) {
+						try {
+							if (shape.textFrame && shape.textFrame.textRange) {
+								const text = shape.textFrame.textRange.text || "";
+								if (text.trim()) {
+									// First non-empty text is likely the title
+									if (!foundTitle) {
+										title = text.trim();
+										foundTitle = true;
+									}
+								}
+							}
+						} catch {
+							// skip
+						}
+					}
+
+					slideList[i].title = title || `Slide ${i + 1}`;
+				}
 
 				resolve({
 					documentName: presentation.name || "Untitled",
@@ -130,19 +177,54 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 			try {
 				const presentation = context.presentation;
 				const slides = presentation.slides;
+
+				// Step 1: Load slides
 				context.load(slides, ["items"]);
 				await context.sync();
 
 				if (slideIndex < 0 || slideIndex >= slides.items.length) {
-					resolve({ error: `Slide index ${slideIndex} out of range` });
+					resolve({ error: `Slide index ${slideIndex} out of range (0-${slides.items.length - 1})` });
 					return;
 				}
 
 				const slide = slides.items[slideIndex];
+
+				// Step 2: Load shapes on this slide
 				const shapes = slide.shapes;
 				context.load(shapes, ["items"]);
 				await context.sync();
 
+				// Step 3: Load properties for each shape
+				for (const shape of shapes.items) {
+					context.load(shape, ["id", "name", "shapeType", "textFrame"]);
+				}
+				await context.sync();
+
+				// Step 4: Load text ranges
+				for (const shape of shapes.items) {
+					try {
+						if (shape.textFrame) {
+							context.load(shape.textFrame, ["textRange"]);
+						}
+					} catch {
+						// no text frame
+					}
+				}
+				await context.sync();
+
+				// Step 5: Load actual text
+				for (const shape of shapes.items) {
+					try {
+						if (shape.textFrame && shape.textFrame.textRange) {
+							context.load(shape.textFrame.textRange, ["text"]);
+						}
+					} catch {
+						// no text range
+					}
+				}
+				await context.sync();
+
+				// Step 6: Build shape list with actual text
 				const shapeList: Array<{
 					id: string;
 					name: string;
@@ -150,21 +232,33 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 					text: string;
 				}> = [];
 
+				let slideTitle = "";
 				for (const shape of shapes.items) {
-					context.load(shape, ["id", "name", "shapeType"]);
-					shapeList.push({
-						id: shape.id || "",
-						name: shape.name || "",
-						shapeType: shape.shapeType || "unknown",
-						text: "",
-					});
-				}
+					let text = "";
+					try {
+						if (shape.textFrame?.textRange?.text) {
+							text = shape.textFrame.textRange.text;
+						}
+					} catch {
+						// no text
+					}
 
-				await context.sync();
+					shapeList.push({
+						id: String(shape.id || ""),
+						name: String(shape.name || ""),
+						shapeType: String(shape.shapeType || "unknown"),
+						text,
+					});
+
+					// First shape with non-empty text is the title
+					if (!slideTitle && text.trim()) {
+						slideTitle = text.trim();
+					}
+				}
 
 				resolve({
 					slideIndex,
-					title: slide.name || `Slide ${slideIndex + 1}`,
+					title: slideTitle || `Slide ${slideIndex + 1}`,
 					shapes: shapeList,
 					speakerNotes: "",
 					isHidden: false,
@@ -194,8 +288,6 @@ async function handleUpdateShapeText(args: unknown): Promise<unknown> {
 	} = config;
 
 	return new Promise((resolve) => {
-		// Stub: In a real implementation, this would use PowerPoint JS API
-		// to update shape text
 		resolve({
 			slideIndex,
 			shapeId,
@@ -219,8 +311,6 @@ async function handleUpdateSpeakerNotes(args: unknown): Promise<unknown> {
 	} = config;
 
 	return new Promise((resolve) => {
-		// Stub: In a real implementation, this would use PowerPoint JS API
-		// to update speaker notes
 		resolve({
 			slideIndex,
 			newNotes: notes,

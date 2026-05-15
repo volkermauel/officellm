@@ -8,7 +8,7 @@ public class CommandStoreTests
     public void AddCommand_AppearsInPending()
     {
         var store = new CommandStore();
-        var cmd = CreateCommand("cmd1", "powerpoint_1", "office_get_active_app");
+        var cmd = CreateCommand("cmd1", "powerpoint_1", "office_get_active_apps");
         store.AddCommand(cmd);
 
         var pending = store.GetPendingCommands("powerpoint_1");

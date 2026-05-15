@@ -26,7 +26,7 @@ public class McpToolEngineTests
             return doc.RootElement.GetProperty("name").GetString()!;
         }).ToList();
 
-        Assert.Contains("office_get_active_app", names);
+        Assert.Contains("office_get_active_apps", names);
         Assert.Contains("powerpoint_get_deck_outline", names);
         Assert.Contains("powerpoint_get_slide", names);
         Assert.Contains("powerpoint_update_shape_text", names);
@@ -38,7 +38,7 @@ public class McpToolEngineTests
     {
         // The McpToolEngine uses a static registry — in a fresh test process,
         // no instances are registered, so any tool call should return an error.
-        var result = await McpToolEngine.ExecuteTool("office_get_active_app", null);
+        var result = await McpToolEngine.ExecuteTool("office_get_active_apps", null);
 
         // Result should be an anonymous object with isError = true
         var json = JsonSerializer.Serialize(result);
