@@ -58,17 +58,17 @@ export async function processCommand(
 async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const PowerPoint: any = (window as any).PowerPoint;
-	if (!PowerPoint || typeof PowerPoint.Run !== "function") {
+	if (!PowerPoint || typeof PowerPoint.run !== "function") {
 		return {
 			documentName: "(unknown)",
 			totalSlides: 0,
 			slides: [],
-			error: "PowerPoint.Run() not available",
+			error: "PowerPoint.run() not available",
 		};
 	}
 
 	return new Promise((resolve) => {
-		PowerPoint.Run(async (context: any) => {
+		PowerPoint.run(async (context: any) => {
 			try {
 				const presentation = context.presentation;
 				const slides = presentation.slides;
@@ -101,7 +101,7 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 				});
 			} catch (error) {
 				resolve({
-					error: `PowerPoint.Run failed: ${error instanceof Error ? error.message : String(error)}`,
+					error: `PowerPoint.run failed: ${error instanceof Error ? error.message : String(error)}`,
 				});
 			}
 		});
@@ -114,19 +114,19 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const PowerPoint: any = (window as any).PowerPoint;
-	if (!PowerPoint || typeof PowerPoint.Run !== "function") {
+	if (!PowerPoint || typeof PowerPoint.run !== "function") {
 		return {
 			slideIndex,
 			title: "(not available)",
 			shapes: [],
 			speakerNotes: "",
 			isHidden: false,
-			error: "PowerPoint.Run() not available",
+			error: "PowerPoint.run() not available",
 		};
 	}
 
 	return new Promise((resolve) => {
-		PowerPoint.Run(async (context: any) => {
+		PowerPoint.run(async (context: any) => {
 			try {
 				const presentation = context.presentation;
 				const slides = presentation.slides;
@@ -171,7 +171,7 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 				});
 			} catch (error) {
 				resolve({
-					error: `PowerPoint.Run failed: ${error instanceof Error ? error.message : String(error)}`,
+					error: `PowerPoint.run failed: ${error instanceof Error ? error.message : String(error)}`,
 				});
 			}
 		});
