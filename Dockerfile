@@ -25,9 +25,6 @@ WORKDIR /usr/share/nginx/html
 # Copy built static files
 COPY --from=addin-builder /build/addin/dist .
 
-# Copy manifest for Office Add-in registration
-COPY --from=addin-builder /build/addin/manifest.xml /usr/share/nginx/html/manifest.xml
-
 # Copy custom nginx config
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 

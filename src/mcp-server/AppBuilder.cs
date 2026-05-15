@@ -96,6 +96,17 @@ public static class AppBuilder
         });
 
         // ============================================================
+        // DYNAMIC MANIFEST XML
+        // Serves manifest.xml with URLs inferred from request Host header
+        // ============================================================
+
+        app.MapGet("/manifest.xml", (HttpContext context) =>
+        {
+            var manifest = ManifestTemplate.Render(context.Request);
+            return Results.Text(manifest, ManifestTemplate.ContentType, ManifestTemplate.Encoding);
+        });
+
+        // ============================================================
         // INSTANCE MANAGEMENT ENDPOINTS
         // ============================================================
 
