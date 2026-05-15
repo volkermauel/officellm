@@ -8,11 +8,29 @@
 
 **Input**: User description: "Implement powerpoint_get_deck_outline, powerpoint_get_slide, powerpoint_update_shape_text and powerpoint_update_speaker_notes. Add diff preview for text changes. Add local audit log. Add basic task pane with context preview."
 
+## Architecture
+
+The MCP server acts as a central hub. Office JS Add-ins register themselves, send heartbeats, poll for commands, and report results. Each registered instance gets a unique ID (e.g., `powerpoint_1`, `powerpoint_2`). Tools accept an optional `instanceId` parameter to target specific instances.
+
+```
+Open WebUI                    MCP Server (port 3000)              Office Add-ins
+    │                                │                               │
+    │── tools/call ─────────────────►│                               │
+    │   { tool, { instanceId?, ... } │                               │
+    │                                │── route to instance ─────────►│
+    │◄── result ─────────────────────│                               │
+    │                                │◄── result ────────────────────│
+    │                                │◄── /instances/register ──────│  (on load)
+    │                                │◄── /instances/:id/heartbeat ─│  (every 10s)
+    │                                │►── /instances/:id/commands ──│  (poll every 2s)
+    │                                │◄── /instances/:id/result ────│  (after execution)
+```
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Presenter reviews deck structure before a meeting (Priority: P1)
 
-A presenter opens their PowerPoint deck, asks Open WebUI to summarize the presentation structure, and receives a hierarchical outline of all slides including titles, text placeholders, speaker notes, and slide order. This helps them quickly orient themselves and prepare talking points.
+A presenter opens their PowerPoint deck, asks Open WebUI to summarize the presentation structure, and receives a hierarchical outline of all slides including titles, text placeholders, speaker notes, and slide order. The tool call defaults to the most recently registered instance (or specifies one explicitly).
 
 **Why this priority**: Reading deck structure is the most common starting point for any LLM-assisted PowerPoint workflow. Without it, the model has no context to work with.
 
@@ -23,12 +41,13 @@ A presenter opens their PowerPoint deck, asks Open WebUI to summarize the presen
 1. **Given** a 20-slide presentation with varied slide types, **When** developer calls `powerpoint_get_deck_outline`, **Then** the response includes slide index, title, text placeholder summaries, and optional speaker notes for each slide
 2. **Given** `includeSpeakerNotes: false`, **When** developer calls `powerpoint_get_deck_outline`, **Then** speaker notes are omitted from the response
 3. **Given** hidden slides exist in the deck, **When** `includeHiddenSlides: false` (default), **Then** hidden slides are excluded from the outline
+4. **Given** two presentations are open (`powerpoint_1` and `powerpoint_2`), **When** developer calls with `{"instanceId": "powerpoint_2", ...}`, **Then** the outline is returned for the second presentation only
 
 ---
 
 ### User Story 2 — Editor corrects a slide's content with preview (Priority: P1)
 
-A document editor notices a typo or outdated information on a specific slide. They ask Open WebUI to update the text, see a before/after diff in the task pane, approve the change, and watch it applied to the shape.
+A document editor notices a typo or outdated information on a specific slide. They ask Open WebUI to update the text, see a before/after diff in the task pane, approve the change, and watch it applied to the shape. The update requires explicit user confirmation before applying.
 
 **Why this priority**: This is the core mutation workflow — propose → preview → confirm → apply. It validates the safety gate pattern that all subsequent phases must follow.
 
@@ -70,8 +89,8 @@ A security-conscious user or IT admin reviews the local audit log to understand 
 **Acceptance Scenarios**:
 
 1. **Given** three tool calls were made (one read, one mutation approved, one mutation rejected), **When** developer opens the audit log, **Then** all three entries are present with correct fields
-2. **Given** an audit entry for a mutation tool, **When** developer inspects the entry, **Then** it contains `toolName`, `timestamp`, `documentHandle`, `inputs`, `requiresConfirmation`, `confirmationStatus`, and `outcome`
-3. **Given** the audit log file, **When** the MCP helper process restarts, **Then** new entries are appended without truncating existing entries
+2. **Given** an audit entry for a mutation tool, **When** developer inspects the entry, **Then** it contains `toolName`, `timestamp`, `instanceId`, `inputs`, `requiresConfirmation`, `confirmationStatus`, and `outcome`
+3. **Given** the audit log file, **When** the MCP server restarts, **Then** new entries are appended without truncating existing entries
 
 ---
 
@@ -81,6 +100,7 @@ A security-conscious user or IT admin reviews the local audit log to understand 
 - What happens when the user closes the presentation while a confirmation dialog is pending? The pending confirmation should be cancelled and logged.
 - What happens when a slide contains grouped shapes with nested text? The tool should handle shape hierarchies and report which level of the hierarchy was modified.
 - What happens when the deck is in protected view or read-only mode? The tool should return a clear error indicating the mode.
+- What happens when an instance times out (no heartbeat for 30s) while a command is pending? The command should fail with `{"ok": false, "errorCode": "INSTANCE_TIMED_OUT"}`.
 
 ## Requirements
 
@@ -93,13 +113,14 @@ A security-conscious user or IT admin reviews the local audit log to understand 
 - **FR-005**: `powerpoint_update_shape_text` MUST return `requiresConfirmation: true` with a diff preview before applying any change.
 - **FR-006**: The MCP server MUST expose `powerpoint_update_speaker_notes` that creates or updates speaker notes for specified slides.
 - **FR-007**: All mutation tools MUST generate a before/after diff preview viewable in the task pane.
-- **FR-008**: The VSTO add-in MUST display a task pane showing current context (active presentation, selected slide) and pending change previews.
-- **FR-009**: The MCP server MUST write every tool call to a local audit log file (JSONL format) with timestamp, tool name, inputs, confirmation status, and outcome.
-- **FR-010**: The system MUST return standard error envelopes with `ok: false`, `errorCode`, `message`, and `recoverable` fields for all failure modes.
+- **FR-008**: The Office JS Add-in MUST display a task pane showing current context (active presentation, selected slide) and pending change previews.
+- **FR-009**: The MCP server MUST write every tool call to a local audit log file (JSONL format) with timestamp, tool name, instanceId, inputs, confirmation status, and outcome.
+- **FR-010**: The add-in MUST support multiple concurrent instances (e.g., two PowerPoint windows) each with independent state.
 
 ### Key Entities
 
-- **Slide**: Identified by zero-based index. Contains text placeholders, shapes, speaker notes, and visibility state.
+- **Instance**: A registered Office application session. Identified by `instanceId` (e.g., `powerpoint_1`). Contains app name, document name, registration time, and heartbeat status.
+- **Slide**: Identified by zero-based index within an instance. Contains text placeholders, shapes, speaker notes, and visibility state.
 - **Shape**: A text-containing element on a slide (title, content placeholder, textbox). Identified by name/ID within the slide.
 - **Speaker Notes**: Text notes associated with a slide, displayed in presenter view.
 - **Diff Preview**: A structured representation of before/after text changes for a specific shape or notes block.
@@ -114,11 +135,12 @@ A security-conscious user or IT admin reviews the local audit log to understand 
 - **SC-003**: The diff preview accurately shows the exact text that will be replaced (character-level diff).
 - **SC-004**: Every tool call is recorded in the audit log within 1 second of execution.
 - **SC-005**: The task pane displays current context and pending changes with less than 200ms visual latency.
+- **SC-006**: Two concurrent PowerPoint presentations can be targeted independently via `instanceId` parameter.
 
 ## Assumptions
 
 - PowerPoint 2019 or later (or Microsoft 365) is available on the developer machine.
-- The VSTO add-in runs in the same process space as PowerPoint (standard VSTO host-add-in model).
+- The Office JS Add-in runs in the same process space as PowerPoint (standard Office Add-in model).
 - Shape IDs are stable within a presentation session (they may change if shapes are recreated).
 - Speaker notes are stored within the `.pptx` file and do not require external storage.
-- The MCP helper process runs on a dynamic port; the VSTO add-in discovers it via a local manifest or well-known default port.
+- The MCP server handles multiple instances without performance degradation.

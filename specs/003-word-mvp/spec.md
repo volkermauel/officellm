@@ -8,6 +8,24 @@
 
 **Input**: User description: "Implement Word outline, selection read, rewrite selection and add comment tools. Use Word comments or tracked changes for review-oriented workflows. Add shared document context abstraction across Word and PowerPoint."
 
+## Architecture
+
+The MCP server acts as a central hub. Word Office JS Add-ins register with instance IDs like `word_1`, `word_2`. Tools accept optional `instanceId` parameter to target specific instances. Shared document context abstraction provides unified response structure across hosts.
+
+```
+Open WebUI                    MCP Server (port 3000)              Office Add-ins
+    │                                │                               │
+    │── tools/call ─────────────────►│                               │
+    │   { tool, { instanceId?, ... } │                               │
+    │                                │── route to instance ─────────►│
+    │◄── result ─────────────────────│                               │
+    │                                │◄── result ────────────────────│
+    │                                │◄── /instances/register ──────│  (on load)
+    │                                │◄── /instances/:id/heartbeat ─│  (every 10s)
+    │                                │►── /instances/:id/commands ──│  (poll every 2s)
+    │                                │◄── /instances/:id/result ────│  (after execution)
+```
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Reviewer obtains document structure (Priority: P1)
@@ -85,8 +103,8 @@ The system provides a unified document context model that works across both Word
 
 **Acceptance Scenarios**:
 
-1. **Given** Word is active, **When** developer calls `office_get_document_context`, **Then** the response uses the shared envelope with Word-specific selection metadata
-2. **Given** PowerPoint is active, **When** developer calls `office_get_document_context`, **Then** the response uses the same envelope structure with PowerPoint-specific selection metadata
+1. **Given** Word is active, **When** developer calls `office_get_active_app`, **Then** the response uses the shared envelope with Word-specific selection metadata
+2. **Given** PowerPoint is active, **When** developer calls `office_get_active_app`, **Then** the response uses the same envelope structure with PowerPoint-specific selection metadata
 3. **Given** both hosts can be queried, **When** Open WebUI processes the response, **Then** it handles both formats identically (no host-specific parsing logic)
 
 ---

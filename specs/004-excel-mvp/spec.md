@@ -8,6 +8,24 @@
 
 **Input**: User description: "Implement workbook map, read range, write range and write formula tools. Add range-size limits and formula validation. Add confirmation preview for any write operation."
 
+## Architecture
+
+The MCP server acts as a central hub. Excel Office JS Add-ins register with instance IDs like `excel_1`, `excel_2`. Tools accept optional `instanceId` parameter to target specific instances.
+
+```
+Open WebUI                    MCP Server (port 3000)              Office Add-ins
+    │                                │                               │
+    │── tools/call ─────────────────►│                               │
+    │   { tool, { instanceId?, ... } │                               │
+    │                                │── route to instance ─────────►│
+    │◄── result ─────────────────────│                               │
+    │                                │◄── result ────────────────────│
+    │                                │◄── /instances/register ──────│  (on load)
+    │                                │◄── /instances/:id/heartbeat ─│  (every 10s)
+    │                                │►── /instances/:id/commands ──│  (poll every 2s)
+    │                                │◄── /instances/:id/result ────│  (after execution)
+```
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Analyst explores workbook structure (Priority: P1)
@@ -129,7 +147,7 @@ An analyst selects or specifies a data range and asks Open WebUI to convert it i
 - **SC-002**: A range read of 1000 cells returns within 2 seconds with accurate values and formulas.
 - **SC-003**: Any write operation requires explicit user approval via the task pane before modifying cells.
 - **SC-004**: Invalid formulas are rejected before any cell is modified, with a clear error message.
-- **SC-005**: Approved writes are undoable via Word/Excel's native Ctrl+Z undo.
+- **SC-005**: Approved writes are undoable via Excel's native Ctrl+Z undo.
 
 ## Assumptions
 

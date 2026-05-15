@@ -8,6 +8,24 @@
 
 **Input**: User description: "Implement current item read, thread summary and draft reply tools. Keep sending disabled or gated behind manual Outlook confirmation. Add optional policy filter for recipient domains and attachments."
 
+## Architecture
+
+The MCP server acts as a central hub. Outlook Office JS Add-ins register with instance IDs like `outlook_1`, `outlook_2`. Tools accept optional `instanceId` parameter to target specific instances. Sending operations require explicit user confirmation via the Outlook UI — never executed from an LLM tool call alone.
+
+```
+Open WebUI                    MCP Server (port 3000)              Office Add-ins
+    │                                │                               │
+    │── tools/call ─────────────────►│                               │
+    │   { tool, { instanceId?, ... } │                               │
+    │                                │── route to instance ─────────►│
+    │◄── result ─────────────────────│                               │
+    │                                │◄── result ────────────────────│
+    │                                │◄── /instances/register ──────│  (on load)
+    │                                │◄── /instances/:id/heartbeat ─│  (every 10s)
+    │                                │►── /instances/:id/commands ──│  (poll every 2s)
+    │                                │◄── /instances/:id/result ────│  (after execution)
+```
+
 ## User Scenarios & Testing
 
 ### User Story 1 — Professional reads an email thread context (Priority: P1)
@@ -113,7 +131,7 @@ A professional has reviewed a draft reply in Outlook and decides to send it. The
 - **FR-007**: The MCP server MUST expose `outlook_send_message` that sends a drafted message only after explicit user confirmation via the Outlook UI.
 - **FR-008**: `outlook_send_message` MUST NEVER execute from an LLM tool call alone — it MUST require a valid confirmation token and explicit user approval in the Outlook task pane.
 - **FR-009**: The system MUST support an optional policy filter that can block sends based on recipient domains, attachment types, or other configurable criteria.
-- **FR-010**: All Outlook tools MUST return the standard MCP response envelope with `ok`, `app`, `documentId`, `result`, `warnings`, `requiresConfirmation`, and `auditId` fields.
+- **FR-010**: All Outlook tools MUST return the standard MCP response envelope with `content`, `isError`, and optional `requiresConfirmation` fields.
 
 ### Key Entities
 
@@ -137,7 +155,7 @@ A professional has reviewed a draft reply in Outlook and decides to send it. The
 ## Assumptions
 
 - Outlook 2019 or later (or Microsoft 365) is available on the developer machine.
-- The VSTO add-in runs in the same process space as Outlook.
+- The Office JS Add-in runs in the same process space as Outlook.
 - Drafts are created using Outlook's native API, ensuring they appear in the correct folder and respect Outlook's own validation rules.
 - The send operation uses Outlook's standard send mechanism (not bypassing it), preserving all Outlook features (send receipts, encryption, etc.).
 - Categories used by the policy filter are pre-configured in the user's Outlook category list.
