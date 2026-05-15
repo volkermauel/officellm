@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.DependencyInjection;
 using OfficeMcpServer.Models;
 using OfficeMcpServer.Tools;
@@ -28,18 +29,57 @@ public static class AppBuilder
             builder.WebHost.UseUrls($"http://{mcpHost}:{mcpPort.Value}");
         }
 
+        // Read CORS origins from env var (comma-separated) or use defaults
+        string? corsOriginsEnv = Environment.GetEnvironmentVariable("CORS_ORIGINS");
+        string[] allowedOrigins;
+
+        if (!string.IsNullOrWhiteSpace(corsOriginsEnv))
+        {
+            allowedOrigins = corsOriginsEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+        else
+        {
+            allowedOrigins = ["http://127.0.0.1:*", "https://127.0.0.1:*"];
+        }
+
         builder.Services.AddCors(options =>
         {
-            options.AddPolicy("LocalOnly", policy =>
+            options.AddPolicy("AllowedOrigins", policy =>
             {
-                policy.WithOrigins("http://127.0.0.1:*", "https://127.0.0.1:*")
+                policy.WithOrigins(allowedOrigins)
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });
         });
 
         var app = builder.Build();
-        app.UseCors("LocalOnly");
+        app.UseCors("AllowedOrigins");
+
+        // --- Static file serving (PowerPoint/Word/Excel/Outlook add-in UI) ---
+        string? staticFilesPath = Environment.GetEnvironmentVariable("STATIC_FILES_PATH")
+            ?? Environment.GetEnvironmentVariable("STATIC_FILES_DIR");
+
+        if (!string.IsNullOrEmpty(staticFilesPath))
+        {
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(staticFilesPath),
+                RequestPath = ""
+            });
+        }
+        else
+        {
+            // Default: look for wwwroot in the current directory
+            string wwwroot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot");
+            if (Directory.Exists(wwwroot))
+            {
+                app.UseStaticFiles(new StaticFileOptions
+                {
+                    FileProvider = new PhysicalFileProvider(wwwroot),
+                    RequestPath = ""
+                });
+            }
+        }
 
         // --- Resolve shared state ---
         var registry = McpToolEngine.GetRegistry();
