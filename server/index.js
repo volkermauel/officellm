@@ -6,6 +6,9 @@ const app = express();
 const PORT = process.env.PORT || 80;
 const DIST_DIR = path.join(__dirname, "dist");
 
+// Trust proxy for X-Forwarded-Proto header (needed when behind Traefik/nginx)
+app.set("trust proxy", true);
+
 // Read manifest template once at startup
 const manifestTemplatePath = path.join(__dirname, "manifest.xml");
 const manifestTemplate = fs.readFileSync(manifestTemplatePath, "utf-8");
