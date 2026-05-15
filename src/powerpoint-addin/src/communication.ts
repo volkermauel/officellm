@@ -8,7 +8,6 @@ const MCP_SERVER_URL = "http://127.0.0.1:3000";
 
 // --- State ---
 let instanceId: string | null = null;
-let officeReady = false;
 
 // ============================================================
 // INSTANCE REGISTRATION & HEARTBEAT
@@ -33,9 +32,9 @@ export async function registerWithMcp(
 	}
 
 	const data = await response.json();
-	instanceId = data.instanceId;
+	instanceId = data.instanceId ?? "";
 	console.log(`Registered with MCP server: ${instanceId}`);
-	return instanceId;
+	return instanceId!;
 }
 
 /**
@@ -148,9 +147,8 @@ export interface OfficeState {
 export function getOfficeState(): Promise<OfficeState> {
 	return new Promise((resolve) => {
 		Office.onReady((info) => {
-			officeReady = true;
 			resolve({
-				app: info.host || "Unknown",
+				app: (info.host as unknown as string) || "Unknown",
 				documentName: "(loading...)",
 				slideCount: 0,
 				currentSlideIndex: 0,

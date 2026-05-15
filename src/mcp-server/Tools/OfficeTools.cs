@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using OfficeMcpServer.Models;
 
 namespace OfficeMcpServer.Tools;
@@ -70,8 +71,9 @@ public static class OfficeTools
                     recoverable: true);
             }
 
-            var result = await response.Content.ReadFromJsonAsync<dynamic>();
-            var requiresConfirmation = result?["requiresConfirmation"]?.ToString() == "true";
+            var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+            bool requiresConfirmation = result.TryGetProperty("requiresConfirmation", out var rcProp)
+                && rcProp.ValueKind == JsonValueKind.True;
 
             if (requiresConfirmation)
             {
@@ -79,7 +81,7 @@ public static class OfficeTools
                 return McpResponse.RequiresConfirmationResponse(app, result);
             }
 
-            LogAudit(app.ToLowerInvariant(), command, "success", result?.ToString() ?? "");
+            LogAudit(app.ToLowerInvariant(), command, "success", result.ToString());
             return McpResponse.Success(app, result);
         }
         catch (Exception ex) when (ex is not InvalidOperationException)

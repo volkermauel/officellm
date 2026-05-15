@@ -13,8 +13,10 @@
 ```
 Open WebUI                    MCP Server (port 3000)              Office Add-ins
     │                                │                               │
-    │── tools/call ─────────────────►│                               │
+    │── MCP: tools/call ────────────►│                               │
     │   { tool, { instanceId?, ... } │                               │
+    │── REST: POST /api/{tool} ─────►│                               │
+    │   { instanceId?, ...params }   │                               │
     │                                │── route to instance ─────────►│
     │◄── result ─────────────────────│                               │
     │                                │◄── result ────────────────────│
@@ -25,11 +27,12 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 ```
 
 **Key design decisions:**
+
 - **Central hub**: Single MCP server process, one port (3000)
 - **Add-ins connect TO server**: Office JS Add-in registers on load, polls for commands
 - **Fixed tool list**: Tools have optional `instanceId` parameter (defaults to most recent instance)
 - **Multiple instances**: Each PowerPoint session gets its own registered instance
-- **Transport**: Streamable HTTP + stdio (MCPo compatible)
+- **Transport**: Streamable HTTP + stdio (MCPo compatible) + OpenAPI REST bridge
 
 ## User Scenarios & Testing
 
@@ -94,7 +97,7 @@ A developer configures Open WebUI's External Tools with the local MCP endpoint a
 
 ### Functional Requirements
 
-- **FR-001**: The MCP server MUST run on a single configurable port (default: 3000) and expose both Streamable HTTP (`/mcp`) and stdio transports.
+- **FR-001**: The MCP server MUST run on a single configurable port (default: 3000) and expose Streamable HTTP (`/mcp`), stdio, and OpenAPI REST bridge (`/api/*`) transports.
 - **FR-002**: The MCP server MUST expose `office_get_active_app` as a tool that returns a list of all registered Office instances.
 - **FR-003**: The MCP server MUST expose `powerpoint_get_deck_outline` with optional `instanceId`, `includeSpeakerNotes`, and `includeHiddenSlides` parameters.
 - **FR-004**: The Office JS Add-in MUST register itself with the MCP server on load via POST `/instances/register`.
@@ -104,6 +107,11 @@ A developer configures Open WebUI's External Tools with the local MCP endpoint a
 - **FR-008**: The MCP server MUST auto-cleanup timed-out instances (no heartbeat for 30 seconds).
 - **FR-009**: Tool calls with no `instanceId` MUST default to the most recently registered active instance.
 - **FR-010**: The MCP server MUST support MCPo integration via stdio JSON-RPC transport.
+- **FR-011**: The MCP server MUST expose an OpenAPI 3.0 specification at `GET /openapi.json` that describes all registered MCP tools as REST endpoints.
+- **FR-012**: Each MCP tool MUST be mapped to a `POST /api/{toolName}` endpoint in the OpenAPI spec, with request body parameters matching the tool's `inputSchema`.
+- **FR-013**: The OpenAPI bridge endpoints (`POST /api/{toolName}`) MUST use the same instance-aware routing as the MCP `tools/call` transport (default to most recent instance, explicit `instanceId` override).
+- **FR-014**: The `/openapi.json` spec MUST include `servers` pointing at the MCP server's actual base URL and must be validatable against the OpenAPI 3.0 schema.
+- **FR-015**: The MCP server MUST expose `GET /docs` serving a Swagger UI for interactive exploration of the REST API.
 
 ### Key Entities
 
@@ -122,6 +130,8 @@ A developer configures Open WebUI's External Tools with the local MCP endpoint a
 - **SC-003**: Docker-hosted Open WebUI can reach the MCP endpoint via `http://host.docker.internal:3000/mcp` without port mapping workarounds.
 - **SC-004**: The MCP server auto-removes instances that stop sending heartbeats within 30 seconds.
 - **SC-005**: Two concurrent PowerPoint presentations register as separate instances and can be targeted independently via `instanceId` parameter.
+- **SC-006**: `GET /openapi.json` returns a valid OpenAPI 3.0 document listing all MCP tools as REST endpoints, consumable by Open WebUI's OpenAPI tool integration.
+- **SC-007**: `POST /api/office_get_active_app` returns the same response as `tools/call` via the MCP transport, confirming the REST bridge works identically.
 
 ## Assumptions
 
