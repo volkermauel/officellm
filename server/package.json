@@ -1,0 +1,12 @@
+{
+  "name": "officellm-static-server",
+  "version": "1.0.0",
+  "description": "Express server for Office LLM Harness static files with dynamic manifest",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
