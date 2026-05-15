@@ -24,6 +24,10 @@ public static class AppBuilder
 
         var builder = WebApplication.CreateBuilder();
 
+        // Suppress noisy ASP.NET request logging (polling generates 6+ lines per request)
+        builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+        builder.Logging.AddFilter("Microsoft.Extensions.Hosting.Internal", LogLevel.Warning);
+
         if (mcpPort.HasValue && !string.IsNullOrEmpty(mcpHost))
         {
             builder.WebHost.UseUrls($"http://{mcpHost}:{mcpPort.Value}");

@@ -112,17 +112,17 @@ public class InstanceRegistry
     }
 
     /// <summary>
-    /// Removes a timed-out instance.
+    /// Removes timed-out instances (no heartbeat for 60 seconds).
     /// </summary>
     public void CleanupTimedOut()
     {
         lock (_lock)
         {
-            var timedOut = _instances.Values.Where(i => i.HasTimedOut(30)).ToList();
+            var timedOut = _instances.Values.Where(i => i.HasTimedOut(60)).ToList();
             foreach (var instance in timedOut)
             {
-                instance.IsAlive = false;
-                Console.WriteLine($"Instance {instance.InstanceId} timed out");
+                _instances.Remove(instance.InstanceId);
+                Console.WriteLine($"Instance {instance.InstanceId} timed out and removed");
             }
         }
     }
