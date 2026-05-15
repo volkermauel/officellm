@@ -36,7 +36,7 @@ jobs:
         run: dotnet build src/mcp-server/OfficeMcpServer.csproj --no-restore --configuration Release
 
       - name: Run MCP server tests
-        run: dotnet test tests/mcp-server.Tests/mcp-server.Tests.csproj --no-build --configuration Release --verbosity normal
+        run: dotnet test tests/mcp-server.Tests/mcp-server.Tests.csproj --configuration Release --verbosity normal
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
