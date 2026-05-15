@@ -12,6 +12,7 @@ permissions:
 jobs:
   # ============================================================
   # CREATE GITHUB RELEASE WITH .EXE ASSET
+  # Downloads the exe artifact from CI instead of rebuilding.
   # ============================================================
   create-release:
     name: Create Release (.exe)
@@ -21,28 +22,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download .exe artifact from CI
+        uses: actions/download-artifact@v4
+        with:
+          name: office-mcp-server-win-x64
+          path: ./publish
+        continue-on-error: true
+
+      # Fallback: build if artifact not found (e.g. tag pushed before CI finishes)
       - name: Setup .NET 8
+        if: steps.download.outcome == 'failure'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
-      - name: Restore MCP server dependencies
-        run: dotnet restore src/mcp-server/OfficeMcpServer.csproj
-
       - name: Publish Windows executable (win-x64)
+        if: steps.download.outcome == 'failure'
         run: >
           dotnet publish src/mcp-server/OfficeMcpServer.csproj
           -c Release
           -r win-x64
           --self-contained true
-          --no-restore
-          -o ./publish/win-x64
+          -o ./publish
           /p:PublishSingleFile=true
           /p:IncludeNativeLibrariesForSelfExtract=true
 
       - name: Create ZIP archive
         run: |
-          cd ./publish/win-x64
+          cd ./publish
           zip -j ../office-mcp-server-win-x64.zip office-mcp-server.exe
 
       - name: Extract tag version
@@ -57,7 +64,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./publish/office-mcp-server-win-x64.zip
+            ./office-mcp-server-win-x64.zip
           body: |
             ## Release ${{ steps.version.outputs.VERSION }}
 
@@ -67,10 +74,10 @@ jobs:
             ### Usage
             ```powershell
             # Windows
-            .\\office-mcp-server.exe
+            .\office-mcp-server.exe
 
             # Custom port
-            .\\office-mcp-server.exe 8080
+            .\office-mcp-server.exe 8080
             ```
 
             ### Docker
