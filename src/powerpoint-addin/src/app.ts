@@ -10,6 +10,7 @@ import {
 	startHeartbeat,
 	pollForCommands,
 	getOfficeState,
+	MCP_SERVER_URL,
 } from "./communication";
 import { processCommand } from "./powerpoint-commands";
 
@@ -195,9 +196,12 @@ function addLogEntry(message: string): void {
 
 // --- Command Processing ---
 
-async function processPendingCommands(): Promise<void> {
-	if (!instanceId) return;
+let isProcessingCommands = false;
 
+async function processPendingCommands(): Promise<void> {
+	if (!instanceId || isProcessingCommands) return;
+
+	isProcessingCommands = true;
 	try {
 		const commands = await pollForCommands();
 		for (const cmd of commands) {
@@ -241,6 +245,8 @@ async function processPendingCommands(): Promise<void> {
 		addLogEntry(
 			`Command poll error: ${error instanceof Error ? error.message : String(error)}`,
 		);
+	} finally {
+		isProcessingCommands = false;
 	}
 }
 
@@ -276,7 +282,7 @@ async function approveChange(): Promise<void> {
 	if (!pendingConfirmation || !instanceId) return;
 
 	try {
-		await fetch(`http://127.0.0.1:3000/instances/${instanceId}/confirm`, {
+		await fetch(`${MCP_SERVER_URL}/instances/${instanceId}/confirm`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -301,7 +307,7 @@ async function rejectChange(): Promise<void> {
 	if (!pendingConfirmation || !instanceId) return;
 
 	try {
-		await fetch(`http://127.0.0.1:3000/instances/${instanceId}/confirm`, {
+		await fetch(`${MCP_SERVER_URL}/instances/${instanceId}/confirm`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -327,14 +333,14 @@ async function sendToLLM(): Promise<void> {
 
 	try {
 		if (!instanceId) throw new Error("Not registered");
-		const response = await fetch("http://127.0.0.1:3000/mcp", {
+		const response = await fetch(`${MCP_SERVER_URL}/mcp`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
 				jsonrpc: "2.0",
 				id: Date.now(),
 				method: "tools/call",
-				params: { name: "office_get_active_app", arguments: {} },
+				params: { name: "office_get_active_apps", arguments: {} },
 			}),
 		});
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);

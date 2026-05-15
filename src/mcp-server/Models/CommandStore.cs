@@ -39,29 +39,23 @@ public class CommandStore
     }
 
     /// <summary>
-    /// Gets pending (unclaimed) commands for a specific instance.
+    /// Atomically gets and claims pending commands for a specific instance.
+    /// Prevents race condition where concurrent polls could receive the same unclaimed command.
     /// </summary>
-    public List<PendingCommand> GetPendingCommands(string instanceId)
+    public List<PendingCommand> GetAndClaimPendingCommands(string instanceId)
     {
         lock (_lock)
         {
-            return _commands.Values
+            var pending = _commands.Values
                 .Where(c => c.InstanceId == instanceId && !c.Completed && string.IsNullOrEmpty(c.ClaimedBy))
                 .ToList();
-        }
-    }
 
-    /// <summary>
-    /// Marks commands as claimed by an instance.
-    /// </summary>
-    public void MarkClaimed(string commandId, string instanceId)
-    {
-        lock (_lock)
-        {
-            if (_commands.TryGetValue(commandId, out var cmd) && string.IsNullOrEmpty(cmd.ClaimedBy))
+            foreach (var cmd in pending)
             {
                 cmd.ClaimedBy = instanceId;
             }
+
+            return pending;
         }
     }
 

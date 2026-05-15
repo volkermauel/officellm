@@ -4,7 +4,7 @@
  * polls for commands, and reports results.
  */
 
-const MCP_SERVER_URL = "http://127.0.0.1:3000";
+export const MCP_SERVER_URL = "http://127.0.0.1:3000";
 
 // --- State ---
 let instanceId: string | null = null;
@@ -123,18 +123,6 @@ export async function reportResult(
 	}
 }
 
-/**
- * Starts periodic command polling (fire-and-forget).
- * Returns commands but does NOT process them — caller should use pollForCommands() directly.
- */
-export function startCommandPolling(intervalMs = 2000): void {
-	setInterval(async () => {
-		// Just poll to keep the connection warm
-		// Actual command processing happens in app.ts processPendingCommands()
-		await pollForCommands();
-	}, intervalMs);
-}
-
 // ============================================================
 // OFFICE STATE RETRIEVAL
 // ============================================================
@@ -160,7 +148,9 @@ export function getOfficeState(): Promise<OfficeState> {
 				if (doc?.url) {
 					// Extract filename from URL path
 					try {
-						documentName = decodeURIComponent(doc.url.split("/").pop() || "Untitled");
+						documentName = decodeURIComponent(
+							doc.url.split("/").pop() || "Untitled",
+						);
 					} catch {
 						documentName = doc.url;
 					}
@@ -175,38 +165,6 @@ export function getOfficeState(): Promise<OfficeState> {
 				slideCount: 0,
 				currentSlideIndex: 0,
 			});
-			});
-	});
-}
-
-/**
- * Sends the current Office context to Open WebUI via MCP.
- */
-export async function sendContextToLLM(): Promise<void> {
-	if (!instanceId) {
-		console.warn("Not registered with MCP server");
-		return;
-	}
-
-	try {
-		const response = await fetch(`${MCP_SERVER_URL}/mcp`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				jsonrpc: "2.0",
-				id: Date.now(),
-				method: "tools/call",
-				params: { name: "office_get_active_app", input: {} },
-			}),
 		});
-
-		if (!response.ok) {
-			throw new Error(`MCP server returned HTTP ${response.status}`);
-		}
-
-		const data = await response.json();
-		console.log("Context sent to LLM:", data);
-	} catch (error) {
-		console.error("Failed to send context:", error);
-	}
+	});
 }

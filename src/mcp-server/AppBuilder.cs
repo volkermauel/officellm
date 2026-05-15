@@ -150,10 +150,7 @@ public static class AppBuilder
 
         app.MapGet("/instances/{instanceId}/commands", (string instanceId) =>
         {
-            var commands = commandStore.GetPendingCommands(instanceId);
-            if (commands.Any())
-                foreach (var cmd in commands)
-                    commandStore.MarkClaimed(cmd.Id, instanceId);
+            var commands = commandStore.GetAndClaimPendingCommands(instanceId);
             return Results.Json(new { commands });
         });
 
@@ -184,7 +181,7 @@ public static class AppBuilder
             }
 
             // Get the pending command to re-execute with token
-            var pendingCmd = commandStore.GetPendingCommands(instanceId).FirstOrDefault(c => c.Id == commandId);
+            var pendingCmd = commandStore.GetAndClaimPendingCommands(instanceId).FirstOrDefault(c => c.Id == commandId);
             if (pendingCmd == null)
             {
                 return Results.NotFound(new { error = "Command not found" });
@@ -331,14 +328,20 @@ public static class AppBuilder
                         propDict[kvp.Key] = openApiProp;
                     }
                 }
-                catch { /* no properties */ }
+                catch (InvalidCastException ex)
+                {
+                    Console.WriteLine($"Warning: Could not extract properties for tool {toolName}: {ex.Message}");
+                }
 
                 try
                 {
                     var reqArr = (string[])tool.inputSchema.required;
                     requiredList = reqArr.ToList();
                 }
-                catch { /* no required */ }
+                catch (InvalidCastException ex)
+                {
+                    Console.WriteLine($"Warning: Could not extract required for tool {toolName}: {ex.Message}");
+                }
 
                 var requestSchema = new
                 {

@@ -11,57 +11,64 @@ public class CommandStoreTests
         var cmd = CreateCommand("cmd1", "powerpoint_1", "office_get_active_apps");
         store.AddCommand(cmd);
 
-        var pending = store.GetPendingCommands("powerpoint_1");
+        var pending = store.GetAndClaimPendingCommands("powerpoint_1");
         Assert.Single(pending);
         Assert.Equal("cmd1", pending[0].Id);
     }
 
     [Fact]
-    public void GetPendingCommands_FiltersByInstanceId()
+    public void GetAndClaimPendingCommands_FiltersByInstanceId()
     {
         var store = new CommandStore();
         store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
         store.AddCommand(CreateCommand("c2", "powerpoint_2", "tool_b"));
 
-        var pending = store.GetPendingCommands("powerpoint_1");
+        var pending = store.GetAndClaimPendingCommands("powerpoint_1");
         Assert.Single(pending);
         Assert.Equal("c1", pending[0].Id);
     }
 
     [Fact]
-    public void GetPendingCommands_ExcludesClaimed()
+    public void GetAndClaimPendingCommands_ExcludesAlreadyClaimed()
     {
         var store = new CommandStore();
         store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
-        store.MarkClaimed("c1", "powerpoint_1");
 
-        var pending = store.GetPendingCommands("powerpoint_1");
+        // First claim returns and claims the command
+        var first = store.GetAndClaimPendingCommands("powerpoint_1");
+        Assert.Single(first);
+
+        // Second call returns empty — already claimed
+        var pending = store.GetAndClaimPendingCommands("powerpoint_1");
         Assert.Empty(pending);
     }
 
     [Fact]
-    public void GetPendingCommands_ExcludesCompleted()
+    public void GetAndClaimPendingCommands_ExcludesCompleted()
     {
         var store = new CommandStore();
         store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
         store.CompleteCommand("c1", true, "", null);
 
-        var pending = store.GetPendingCommands("powerpoint_1");
+        var pending = store.GetAndClaimPendingCommands("powerpoint_1");
         Assert.Empty(pending);
     }
 
     [Fact]
-    public void MarkClaimed_IgnoresAlreadyClaimed()
+    public void GetAndClaimPendingCommands_IsAtomic()
     {
         var store = new CommandStore();
         store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
-        store.MarkClaimed("c1", "powerpoint_1");
 
-        // Claim again with different instance — should not change
-        store.MarkClaimed("c1", "powerpoint_2");
+        // First claim succeeds and returns the command
+        var claimed = store.GetAndClaimPendingCommands("powerpoint_1");
+        Assert.Single(claimed);
+        Assert.Equal("c1", claimed[0].Id);
+        Assert.Equal("powerpoint_1", claimed[0].ClaimedBy);
 
-        var cmd = store.GetPendingCommands("powerpoint_1");
-        Assert.Empty(cmd); // Still claimed by powerpoint_1
+        // Second claim returns empty — already claimed
+        var claimed2 = store.GetAndClaimPendingCommands("powerpoint_1");
+        Assert.Empty(claimed2);
     }
 
     [Fact]
@@ -111,7 +118,7 @@ public class CommandStoreTests
         store.CompleteCommand("c1", true, "", null);
 
         // Manually set the completed time to 10 minutes ago
-        // We need to access the internal command — via GetPendingCommands which returns all
+        // We need to access the internal command — via GetAndClaimPendingCommands which returns all
         // Instead, let's just verify it doesn't crash and removes old ones
         store.CleanupOldCommands();
 

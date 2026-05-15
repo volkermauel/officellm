@@ -5,6 +5,10 @@ namespace OfficeMcpServer.Tests;
 
 public class McpToolEngineTests
 {
+	public McpToolEngineTests()
+	{
+		McpToolEngine.ResetForTesting();
+	}
     [Fact]
     public void GetToolDefinitions_ReturnsExpectedTools()
     {
