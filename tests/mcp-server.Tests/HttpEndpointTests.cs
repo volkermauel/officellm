@@ -278,6 +278,18 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         var tools = body.GetProperty("result").GetProperty("tools");
         Assert.True(tools.GetArrayLength() >= 5);
+
+        // Verify tool schemas have proper properties
+        var deckOutline = tools.EnumerateArray().First(t => t.GetProperty("name").GetString() == "powerpoint_get_deck_outline");
+        var schemaProps = deckOutline.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(schemaProps.ValueKind == JsonValueKind.Object, "properties should be an object");
+        Assert.True(schemaProps.GetProperty("instanceId").GetProperty("type").GetString() == "string");
+
+        var getSlide = tools.EnumerateArray().First(t => t.GetProperty("name").GetString() == "powerpoint_get_slide");
+        var slideProps = getSlide.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(slideProps.GetProperty("slideIndex").GetProperty("type").GetString() == "integer");
+        var required = getSlide.GetProperty("inputSchema").GetProperty("required");
+        Assert.Equal("slideIndex", required[0].GetString());
     }
 
     [Fact]
@@ -291,7 +303,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             @params = new
             {
                 name = "office_get_active_app",
-                input = new { }
+                arguments = new { }
             }
         });
 
