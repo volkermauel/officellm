@@ -31,11 +31,11 @@ A Windows desktop Office add-in harness that exposes controlled document interac
 
 ## Components
 
-| Component | Language | Description |
-|-----------|----------|-------------|
-| **MCP Server** | C# (.NET 8) | Self-contained executable exposing MCP tools over Streamable HTTP. Includes a bridge server for add-in communication. |
-| **PowerPoint Add-in** | TypeScript/HTML | Office JS Add-in running as a task pane in PowerPoint. Provides the Office API interaction layer. |
-| **Bridge Server** | .NET (embedded) | Lightweight HTTP server on port 8765 that queues commands from the MCP server for the add-in to process. |
+| Component             | Language        | Description                                                                                                           |
+| --------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **MCP Server**        | C# (.NET 8)     | Self-contained executable exposing MCP tools over Streamable HTTP. Includes a bridge server for add-in communication. |
+| **PowerPoint Add-in** | TypeScript/HTML | Office JS Add-in running as a task pane in PowerPoint. Provides the Office API interaction layer.                     |
+| **Bridge Server**     | .NET (embedded) | Lightweight HTTP server on port 8765 that queues commands from the MCP server for the add-in to process.              |
 
 ## Project Structure
 

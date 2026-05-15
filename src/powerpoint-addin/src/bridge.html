@@ -1,12 +1,15 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Office LLM Harness — Bridge</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self';">
-</head>
-<body>
-  <!--
+  <head>
+    <meta charset="utf-8" />
+    <title>Office LLM Harness — Bridge</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self';"
+    />
+  </head>
+  <body>
+    <!--
     Bridge page: This page is served by the MCP server on port 8765.
     It acts as a lightweight HTTP endpoint that the MCP server calls
     to communicate with the Office JS add-in running in PowerPoint.
@@ -19,70 +22,80 @@
       POST /command  { command: "getDeckOutline", args: {...} }
       GET  /result   → last result from the add-in
   -->
-  <script>
-    // Simple in-memory command queue (for local process communication)
-    const commands = [];
-    let lastResult = null;
+    <script>
+      // Simple in-memory command queue (for local process communication)
+      const commands = [];
+      let lastResult = null;
 
-    // CORS headers for MCP server requests
-    function setCORSHeaders(res) {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    }
+      // CORS headers for MCP server requests
+      function setCORSHeaders(res) {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      }
 
-    if (typeof window !== 'undefined') {
-      // Running in browser — serve as static page
-      document.body.innerHTML = '<p style="font-family:system-ui;padding:20px;color:#666;">Bridge endpoint ready.</p>';
-    }
+      if (typeof window !== "undefined") {
+        // Running in browser — serve as static page
+        document.body.innerHTML =
+          '<p style="font-family:system-ui;padding:20px;color:#666;">Bridge endpoint ready.</p>';
+      }
 
-    // If running in Node.js (Express server), handle HTTP requests
-    if (typeof require !== 'undefined') {
-      const http = require('http');
-      const { URL } = require('url');
+      // If running in Node.js (Express server), handle HTTP requests
+      if (typeof require !== "undefined") {
+        const http = require("http");
+        const { URL } = require("url");
 
-      const server = http.createServer((req, res) => {
-        setCORSHeaders(res);
+        const server = http.createServer((req, res) => {
+          setCORSHeaders(res);
 
-        if (req.method === 'OPTIONS') {
-          res.writeHead(204);
-          res.end();
-          return;
-        }
+          if (req.method === "OPTIONS") {
+            res.writeHead(204);
+            res.end();
+            return;
+          }
 
-        const url = new URL(req.url, `http://${req.headers.host}`);
+          const url = new URL(req.url, `http://${req.headers.host}`);
 
-        if (req.method === 'POST' && url.pathname === '/command') {
-          let body = '';
-          req.on('data', chunk => { body += chunk; });
-          req.on('end', () => {
-            try {
-              const cmd = JSON.parse(body);
-              commands.push(cmd);
-              lastResult = { status: 'queued', command: cmd.command };
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify(lastResult));
-            } catch (e) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Invalid JSON' }));
-            }
-          });
-        } else if (req.method === 'GET' && url.pathname === '/result') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(lastResult || { status: 'idle' }));
-        } else if (req.method === 'GET' && url.pathname === '/health') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'ok', commandsPending: commands.length }));
-        } else {
-          res.writeHead(404);
-          res.end('Not Found');
-        }
-      });
+          if (req.method === "POST" && url.pathname === "/command") {
+            let body = "";
+            req.on("data", (chunk) => {
+              body += chunk;
+            });
+            req.on("end", () => {
+              try {
+                const cmd = JSON.parse(body);
+                commands.push(cmd);
+                lastResult = { status: "queued", command: cmd.command };
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify(lastResult));
+              } catch (e) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Invalid JSON" }));
+              }
+            });
+          } else if (req.method === "GET" && url.pathname === "/result") {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify(lastResult || { status: "idle" }));
+          } else if (req.method === "GET" && url.pathname === "/health") {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                status: "ok",
+                commandsPending: commands.length,
+              }),
+            );
+          } else {
+            res.writeHead(404);
+            res.end("Not Found");
+          }
+        });
 
-      server.listen(8765, '127.0.0.1', () => {
-        console.log('Office LLM Harness Bridge listening on http://127.0.0.1:8765');
-      });
-    }
-  </script>
-</body>
+        server.listen(8765, "127.0.0.1", () => {
+          console.log(
+            "Office LLM Harness Bridge listening on http://127.0.0.1:8765",
+          );
+        });
+      }
+    </script>
+  </body>
 </html>

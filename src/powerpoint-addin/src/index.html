@@ -1,303 +1,325 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Office LLM Harness</title>
-  <style>
-    :root {
-      --bg: #f7f8fa;
-      --paper: #ffffff;
-      --text: #1b1f24;
-      --muted: #5d6673;
-      --accent: #275efe;
-      --accent-soft: #eef3ff;
-      --ok: #0f7b4f;
-      --line: #d8dee6;
-    }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Office LLM Harness</title>
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --paper: #ffffff;
+        --text: #1b1f24;
+        --muted: #5d6673;
+        --accent: #275efe;
+        --accent-soft: #eef3ff;
+        --ok: #0f7b4f;
+        --line: #d8dee6;
+      }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    body {
-      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 0.9rem;
-      line-height: 1.5;
-    }
+      body {
+        font-family:
+          Inter,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
 
-    .container {
-      padding: 16px;
-      max-width: 400px;
-      margin: 0 auto;
-    }
+      .container {
+        padding: 16px;
+        max-width: 400px;
+        margin: 0 auto;
+      }
 
-    header {
-      text-align: center;
-      padding: 12px 0 16px;
-      border-bottom: 1px solid var(--line);
-      margin-bottom: 16px;
-    }
+      header {
+        text-align: center;
+        padding: 12px 0 16px;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 16px;
+      }
 
-    header h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--accent);
-    }
+      header h1 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
 
-    header p {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-top: 4px;
-    }
+      header p {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 4px;
+      }
 
-    .status-card {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
+      .status-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
 
-    .status-card h2 {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
+      .status-card h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
 
-    .status-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 4px 0;
-    }
+      .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+      }
 
-    .status-label {
-      font-size: 0.82rem;
-      color: var(--muted);
-    }
+      .status-label {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
 
-    .status-value {
-      font-size: 0.82rem;
-      font-weight: 500;
-      max-width: 60%;
-      text-align: right;
-      word-break: break-word;
-    }
+      .status-value {
+        font-size: 0.82rem;
+        font-weight: 500;
+        max-width: 60%;
+        text-align: right;
+        word-break: break-word;
+      }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 0.72rem;
-      font-weight: 600;
-    }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 600;
+      }
 
-    .badge.connected {
-      background: #e9f8f1;
-      color: var(--ok);
-    }
+      .badge.connected {
+        background: #e9f8f1;
+        color: var(--ok);
+      }
 
-    .badge.disconnected {
-      background: #fff0f0;
-      color: #a52727;
-    }
+      .badge.disconnected {
+        background: #fff0f0;
+        color: #a52727;
+      }
 
-    .context-section {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
+      .context-section {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
 
-    .context-section h2 {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
+      .context-section h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
 
-    .context-value {
-      font-size: 0.9rem;
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
+      .context-value {
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
 
-    .context-detail {
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
+      .context-detail {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
 
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
 
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border: none;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
 
-    .btn-primary {
-      background: var(--accent);
-      color: white;
-    }
+      .btn-primary {
+        background: var(--accent);
+        color: white;
+      }
 
-    .btn-primary:hover {
-      background: #1a4de0;
-    }
+      .btn-primary:hover {
+        background: #1a4de0;
+      }
 
-    .btn-secondary {
-      background: var(--accent-soft);
-      color: var(--accent);
-      border: 1px solid #d8e0ff;
-    }
+      .btn-secondary {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border: 1px solid #d8e0ff;
+      }
 
-    .btn-secondary:hover {
-      background: #dbe5ff;
-    }
+      .btn-secondary:hover {
+        background: #dbe5ff;
+      }
 
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
 
-    .log-section {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
+      .log-section {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
 
-    .log-section h2 {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
+      .log-section h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
 
-    .log-entry {
-      font-size: 0.78rem;
-      font-family: Consolas, Monaco, monospace;
-      padding: 4px 0;
-      border-bottom: 1px solid #f0f0f0;
-      color: var(--muted);
-    }
+      .log-entry {
+        font-size: 0.78rem;
+        font-family: Consolas, Monaco, monospace;
+        padding: 4px 0;
+        border-bottom: 1px solid #f0f0f0;
+        color: var(--muted);
+      }
 
-    .log-entry:last-child {
-      border-bottom: none;
-    }
+      .log-entry:last-child {
+        border-bottom: none;
+      }
 
-    .loading {
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.85rem;
-      padding: 20px;
-    }
+      .loading {
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+        padding: 20px;
+      }
 
-    .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--line);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--line);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
 
-    footer {
-      text-align: center;
-      padding: 12px 0;
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <h1>Office LLM Harness</h1>
-      <p>PowerPoint &middot; MCP Bridge</p>
-    </header>
+      footer {
+        text-align: center;
+        padding: 12px 0;
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Office LLM Harness</h1>
+        <p>PowerPoint &middot; MCP Bridge</p>
+      </header>
 
-    <!-- Connection Status -->
-    <div class="status-card">
-      <h2>Connection</h2>
-      <div class="status-row">
-        <span class="status-label">MCP Server</span>
-        <span id="mcpStatus" class="badge disconnected">Checking...</span>
+      <!-- Connection Status -->
+      <div class="status-card">
+        <h2>Connection</h2>
+        <div class="status-row">
+          <span class="status-label">MCP Server</span>
+          <span id="mcpStatus" class="badge disconnected">Checking...</span>
+        </div>
+        <div class="status-row" style="margin-top: 4px">
+          <span class="status-label">Office API</span>
+          <span id="officeStatus" class="badge disconnected"
+            >Initializing...</span
+          >
+        </div>
       </div>
-      <div class="status-row" style="margin-top: 4px;">
-        <span class="status-label">Office API</span>
-        <span id="officeStatus" class="badge disconnected">Initializing...</span>
+
+      <!-- Document Context -->
+      <div class="context-section" id="contextSection" style="display: none">
+        <h2>Document Context</h2>
+        <div class="status-row">
+          <span class="status-label">Presentation</span>
+          <span id="docName" class="status-value">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Slide</span>
+          <span id="slideInfo" class="status-value">—</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Slides</span>
+          <span id="slideCount" class="status-value">—</span>
+        </div>
       </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button
+          class="btn btn-primary"
+          id="btnRefresh"
+          onclick="refreshContext()"
+        >
+          🔄 Refresh Context
+        </button>
+        <button
+          class="btn btn-secondary"
+          id="btnSendToLLM"
+          onclick="sendToLLM()"
+        >
+          🤖 Ask LLM (Send Context)
+        </button>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="log-section">
+        <h2>Activity Log</h2>
+        <div id="activityLog">
+          <div class="loading">
+            <span class="spinner"></span>Waiting for commands...
+          </div>
+        </div>
+      </div>
+
+      <footer>Office LLM Harness v0.1.0-spike &middot; MCP Bridge</footer>
     </div>
 
-    <!-- Document Context -->
-    <div class="context-section" id="contextSection" style="display: none;">
-      <h2>Document Context</h2>
-      <div class="status-row">
-        <span class="status-label">Presentation</span>
-        <span id="docName" class="status-value">—</span>
-      </div>
-      <div class="status-row">
-        <span class="status-label">Slide</span>
-        <span id="slideInfo" class="status-value">—</span>
-      </div>
-      <div class="status-row">
-        <span class="status-label">Slides</span>
-        <span id="slideCount" class="status-value">—</span>
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="actions">
-      <button class="btn btn-primary" id="btnRefresh" onclick="refreshContext()">
-        🔄 Refresh Context
-      </button>
-      <button class="btn btn-secondary" id="btnSendToLLM" onclick="sendToLLM()">
-        🤖 Ask LLM (Send Context)
-      </button>
-    </div>
-
-    <!-- Activity Log -->
-    <div class="log-section">
-      <h2>Activity Log</h2>
-      <div id="activityLog">
-        <div class="loading"><span class="spinner"></span>Waiting for commands...</div>
-      </div>
-    </div>
-
-    <footer>
-      Office LLM Harness v0.1.0-spike &middot; MCP Bridge
-    </footer>
-  </div>
-
-  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <script src="bundle.js"></script>
-</body>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script src="bundle.js"></script>
+  </body>
 </html>
