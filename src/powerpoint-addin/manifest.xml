@@ -32,7 +32,6 @@
   </Hosts>
   <DefaultSettings>
     <SourceLocation DefaultValue="{{BASE_URL}}/index.html"/>
-    <RequestedWidth>400</RequestedWidth>
   </DefaultSettings>
 
   <!-- Permissions -->
