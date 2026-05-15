@@ -10,7 +10,7 @@ A Windows desktop Office add-in harness that exposes controlled document interac
 | PowerPoint /       |        | - Chat UI               |
 | Outlook            |        | - Model routing         |
 +---------+----------+        | - MCP external tools    |
-          | VSTO / COM                    |
+          | Office JS API                  |
           v                               | MCP Streamable HTTP
 +---------+----------+                    |
 | Office JS Add-in   |                    |
@@ -23,19 +23,30 @@ A Windows desktop Office add-in harness that exposes controlled document interac
 +---------+-------------------------------+-------------+
 | Local Office MCP Server (.NET 8)                      |
 | - MCP protocol endpoint (port 3000)                   |
-| - Tool registry                                      |
-| - Bridge server (port 8765)                           |
-| - Audit log                                          |
+| - Tool registry & command dispatch                    |
+| - Instance registry with heartbeat tracking           |
+| - Two-phase confirmation for mutations                |
+| - Audit log (JSONL)                                   |
 +------------------------------------------------------+
 ```
+
+### Data Flow
+
+1. **LLM calls tool** → `POST /mcp` with `tools/call` method
+2. **MCP server queues command** → stored in `CommandStore`, add-in polls `GET /instances/{id}/commands`
+3. **Add-in executes** → `PowerPoint.run()` calls Office JS API
+4. **Add-in reports result** → `POST /instances/{id}/result`
+5. **MCP server returns** → result passed back to LLM
+
+For **mutation tools** (`update_shape_text`, `update_speaker_notes`), step 2–4 is replaced by a two-phase confirmation flow with diff preview.
 
 ## Components
 
 | Component             | Language        | Description                                                                                                           |
 | --------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **MCP Server**        | C# (.NET 8)     | Self-contained executable exposing MCP tools over Streamable HTTP. Includes a bridge server for add-in communication. |
-| **PowerPoint Add-in** | TypeScript/HTML | Office JS Add-in running as a task pane in PowerPoint. Provides the Office API interaction layer.                     |
-| **Bridge Server**     | .NET (embedded) | Lightweight HTTP server on port 8765 that queues commands from the MCP server for the add-in to process.              |
+| **MCP Server**        | C# (.NET 8)     | Self-contained executable exposing MCP tools over Streamable HTTP. Command dispatch, instance registry, confirmation flow, audit logging. |
+| **PowerPoint Add-in** | TypeScript/HTML | Office JS Add-in running as a task pane in PowerPoint. Polls MCP server for commands, executes via `PowerPoint.run()`. |
+| **Express Server**    | Node.js         | Serves static add-in files + dynamic `manifest.xml` (URLs from Host header). Docker/K8s deployment. |
 
 ## Project Structure
 
@@ -144,7 +155,72 @@ dotnet run     # Development
 dotnet publish -c Release -r win-x64 --self-contained true  # Production executable
 ```
 
+## Development Notes
+
+These are hard-won lessons from building this project. Follow them to avoid known pitfalls.
+
+### Office JS API
+
+- **`PowerPoint.run()` is lowercase** — not `Run()`, `Excel.Run()`, etc. The Office JS API uses camelCase (`run`, not `Run`). A typo here silently fails with "PowerPoint.run() not available" because `PowerPoint.Run` is `undefined`.
+- **`context.load(collection, ["items"])`** — always load `items` on collections. Do NOT use `"notCoveredByParallelization"` or other VSTO-era properties; those don't exist in Office JS.
+- **`context.load(obj, ["id", "name"])`** — pass property names as an array of strings, not a comma-separated string.
+- **`@types/office-js` is incomplete** — many newer PowerPoint context types lack type definitions. Use `any` casts and `PowerPoint.run(async (context: any) => ...)`.
+- **`Office.context.document.url`** — gives the document URL/path (if available). Use this for the real document name in `getOfficeState()`.
+
+### MCP Protocol
+
+- **`params.arguments`** — tool call arguments come under `params.arguments`, NOT `params.input`. The MCP spec uses `arguments`.
+- **`inputSchema`** — tool definitions use `inputSchema` (not `parameters` or `schema`). The `properties` and `required` fields follow JSON Schema.
+- **`@default` in C#** — JSON Schema uses `default` as the keyword. In C#, use `@default` (with `@` prefix since `default` is a reserved word).
+
+### Add-in Architecture
+
+- **Command polling must process results** — `startCommandPolling()` must call `processPendingCommands()`, not just `pollForCommands()`. The poll returns commands that must be dispatched to `processCommand()`.
+- **`processCommand()` calls `reportResult()` internally** — don't double-report. The handler already POSTs the result back to the MCP server.
+- **`Office.onReady()` can fire multiple times** — use an `isInitialized` guard to prevent double-registration.
+- **No duplicate `<script>` tags** — `HtmlWebpackPlugin` already injects `bundle.js`. Adding a static `<script src="bundle.js">` causes double initialization.
+
+### ASP.NET / MCP Server
+
+- **Suppress noisy request logging** — polling endpoints fire every 2s. Set `Microsoft.AspNetCore` logging to `Warning` level:
+  ```csharp
+  builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+  ```
+- **`CleanupTimedOut()` must remove instances** — don't just set `IsAlive = false` or the same dead instance logs "timed out" every 30 seconds. Actually remove it from the dictionary.
+- **`Results.Json()` serializes anonymous types correctly** — `Dictionary<string, object>` with anonymous type values works fine with `System.Text.Json`.
+
+### Deployment
+
+- **Manifest uses `{{BASE_URL}}` placeholders** — replaced at request time by Express server. No hardcoded URLs.
+- **`<AppDomain>` not `<Domain>`** — Office manifest XML uses `<AppDomain>`, not `<Domain>`.
+- **`<Host Name="Presentation"/>`** — the `Name` attribute is capitalized.
+- **No `<RequestedWidth>`** on TaskPaneApp — only valid for Content app types.
+- **Traefik ingress** — use `traefik` ingress class, not `nginx`.
+- **`{{ }}` in Helm** — no spaces inside braces. Some editors auto-format and insert `{ { } }` which breaks templates.
+
 ## Testing
+
+### MCP Server (C#)
+
+58 xUnit tests covering models, command routing, and HTTP endpoints:
+
+```bash
+dotnet test tests/mcp-server.Tests/
+```
+
+- Uses `WebApplicationFactory<Program>` for in-process HTTP integration tests.
+- `McpToolEngine.ResetForTesting()` clears static state before each test class.
+- Pre-commit hook (`.git/hooks/pre-commit`) enforces all tests pass.
+
+### Express Server (Node.js)
+
+6 tests for dynamic manifest generation:
+
+```bash
+cd server && npm test
+```
+
+### Add-in (TypeScript)
 
 The add-in must be tested in a real Windows Office environment:
 
@@ -153,6 +229,18 @@ The add-in must be tested in a real Windows Office environment:
 3. Sideload the PowerPoint add-in
 4. Verify task pane loads in PowerPoint
 5. Test each tool via Open WebUI's MCP integration
+
+## CI/CD
+
+| Workflow | Trigger | Jobs |
+|----------|---------|------|
+| `ci.yml` | Push to master/main | Build+Test → Docker push (`ghcr.io/volkermauel/officellm-static:latest`) → Windows `.exe` artifact |
+| `release.yml` | Tag `v*` | GitHub Release with `.exe` + Docker semver tag |
+
+Download latest exe:
+```bash
+gh run download --name office-mcp-server-win-x64
+```
 
 ## Specifications
 
@@ -167,4 +255,3 @@ See [`specs/`](specs/) for detailed feature specifications organized by implemen
 ## License
 
 Private / Internal Use Only
-test change
