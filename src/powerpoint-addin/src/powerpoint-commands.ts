@@ -1,14 +1,13 @@
 /**
  * PowerPoint command handler using Office JS API.
  *
- * Critical API rules:
- * - shape.textFrame THROWS InvalidArgument → use getTextFrameOrNullObject()
- * - getTextFrameOrNullObject() returns object with isNullObject=true if no text
- * - shape.load("id") loads ONE property, shape.load("id,name") loads multiple
+ * Critical API rules (verified by testing):
+ * - getTextFrameOrNullObject() creates a NEW object each call — MUST store references
+ * - ctx.load(tf, "isNullObject,textRange/text") — load on the context, not tf.load()
+ * - isNullObject must be explicitly loaded — not available by default
  * - slide.load("shapes/items/$none") loads collection items without properties
- * - slash paths like "textFrame/textRange/text" load nested props
+ * - shape.load("id,name") — comma-separated works on direct properties
  * - MUST sync() before reading ANY loaded property
- * - load() errors fire at sync() time, not at load() time
  */
 
 /// <reference types="@types/office-js" />
@@ -51,6 +50,19 @@ export async function processCommand(
 	return result;
 }
 
+// Shapes to skip when looking for slide titles (non-content shapes)
+const TITLE_SKIP_PATTERNS = [
+	/slide\s*number/i,
+	/footer/i,
+	/header/i,
+	/date/i,
+	/background/i,
+];
+
+function isContentShape(name: string): boolean {
+	return !TITLE_SKIP_PATTERNS.some(p => p.test(name));
+}
+
 async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const PowerPoint: any = (window as any).PowerPoint;
@@ -59,47 +71,51 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 	}
 
 	return new Promise((resolve) => {
-		PowerPoint.run(async (context: any) => {
+		PowerPoint.run(async (ctx: any) => {
 			try {
-				const presentation = context.presentation;
-				presentation.load("slides");
-				await context.sync();
+				const pres = ctx.presentation;
+				pres.load("slides");
+				await ctx.sync();
 
-				const slides = presentation.slides;
+				const slides = pres.slides;
 				const totalSlides = slides.items.length;
-				const slideList: Array<{ index: number; title: string }> = [];
 
 				// Load shapes items for all slides
-				for (const slide of slides.items) {
-					slide.load("shapes/items/$none");
+				for (const sl of slides.items) {
+					sl.load("shapes/items/$none");
 				}
-				await context.sync();
+				await ctx.sync();
 
-				// For each shape, get text via getTextFrameOrNullObject
-				for (const slide of slides.items) {
-					for (const shape of slide.shapes.items) {
-						const tf = shape.getTextFrameOrNullObject();
-						tf.load("textRange/text");
+				// Load textFrame references (MUST store — getTextFrameOrNullObject creates new objects)
+				const slideTextFrames: any[][] = [];
+				for (let i = 0; i < totalSlides; i++) {
+					const sl = slides.items[i];
+					const tfs: any[] = [];
+					for (const s of sl.shapes.items) {
+						const tf = s.getTextFrameOrNullObject();
+						ctx.load(tf, "isNullObject,textRange/text");
+						tfs.push(tf);
 					}
+					slideTextFrames.push(tfs);
 				}
-				await context.sync();
+				await ctx.sync();
 
-				// Extract titles
+				// Extract titles (first content shape with non-empty text)
+				const slideList: Array<{ index: number; title: string }> = [];
 				for (let i = 0; i < totalSlides; i++) {
 					const shapes = slides.items[i].shapes.items;
+					const tfs = slideTextFrames[i];
 					let title = "";
 
-					for (const shape of shapes) {
-						try {
-							const tf = shape.getTextFrameOrNullObject();
-							if (!tf.isNullObject && tf.textRange?.text) {
-								const text = String(tf.textRange.text).trim();
-								if (text && !title) {
-									title = text;
-								}
-							}
-						} catch {
-							// skip
+					for (let j = 0; j < shapes.length; j++) {
+						const tf = tfs[j];
+						if (tf.isNullObject) continue;
+						const shapeName = String(shapes[j].name || "");
+						if (!isContentShape(shapeName)) continue;
+
+						const text = String(tf.textRange?.text || "").trim();
+						if (text && !title) {
+							title = text;
 						}
 					}
 
@@ -125,55 +141,58 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 	}
 
 	return new Promise((resolve) => {
-		PowerPoint.run(async (context: any) => {
+		PowerPoint.run(async (ctx: any) => {
 			try {
-				const presentation = context.presentation;
-				presentation.load("slides");
-				await context.sync();
+				const pres = ctx.presentation;
+				pres.load("slides");
+				await ctx.sync();
 
-				if (slideIndex < 0 || slideIndex >= presentation.slides.items.length) {
-					resolve({ error: `Slide index ${slideIndex} out of range (0-${presentation.slides.items.length - 1})` });
+				if (slideIndex < 0 || slideIndex >= pres.slides.items.length) {
+					resolve({ error: `Slide index ${slideIndex} out of range (0-${pres.slides.items.length - 1})` });
 					return;
 				}
 
-				const slide = presentation.slides.items[slideIndex];
+				const slide = pres.slides.items[slideIndex];
 
-				// Step 1: Load shapes items
+				// Step 1: Load shapes items + id/name
 				slide.load("shapes/items/$none");
-				await context.sync();
+				await ctx.sync();
 
-				// Step 2: Load id + name on each shape, and text via getTextFrameOrNullObject
-				for (const shape of slide.shapes.items) {
-					shape.load("id");
-					shape.load("name");
-					const tf = shape.getTextFrameOrNullObject();
-					tf.load("textRange/text");
+				for (const s of slide.shapes.items) {
+					s.load("id,name");
 				}
-				await context.sync();
+				await ctx.sync();
+
+				// Step 2: Load textFrame references
+				const tfs: any[] = [];
+				for (const s of slide.shapes.items) {
+					const tf = s.getTextFrameOrNullObject();
+					ctx.load(tf, "isNullObject,textRange/text");
+					tfs.push(tf);
+				}
+				await ctx.sync();
 
 				// Step 3: Build result
 				const shapeList: Array<{ id: string; name: string; shapeType: string; text: string }> = [];
 				let slideTitle = "";
 
-				for (const shape of slide.shapes.items) {
+				for (let i = 0; i < slide.shapes.items.length; i++) {
+					const s = slide.shapes.items[i];
+					const tf = tfs[i];
 					let text = "";
-					try {
-						const tf = shape.getTextFrameOrNullObject();
-						if (!tf.isNullObject && tf.textRange?.text) {
-							text = String(tf.textRange.text);
-						}
-					} catch {
-						// no text
+
+					if (!tf.isNullObject && tf.textRange?.text) {
+						text = String(tf.textRange.text);
 					}
 
 					shapeList.push({
-						id: String(shape.id || ""),
-						name: String(shape.name || ""),
+						id: String(s.id || ""),
+						name: String(s.name || ""),
 						shapeType: "unknown",
 						text,
 					});
 
-					if (!slideTitle && text.trim()) {
+					if (!slideTitle && text.trim() && isContentShape(String(s.name || ""))) {
 						slideTitle = text.trim();
 					}
 				}
