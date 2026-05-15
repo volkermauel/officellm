@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: officellm
+  labels:
+    app.kubernetes.io/name: office-llm-harness
+    app.kubernetes.io/component: namespace
