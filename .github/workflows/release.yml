@@ -40,23 +40,10 @@ jobs:
           /p:PublishSingleFile=true
           /p:IncludeNativeLibrariesForSelfExtract=true
 
-      - name: Publish Linux executable (linux-x64)
-        run: >
-          dotnet publish src/mcp-server/OfficeMcpServer.csproj
-          -c Release
-          -r linux-x64
-          --self-contained true
-          --no-restore
-          -o ./publish/linux-x64
-          /p:PublishSingleFile=true
-          /p:IncludeNativeLibrariesForSelfExtract=true
-
-      - name: Create ZIP archives
+      - name: Create ZIP archive
         run: |
           cd ./publish/win-x64
           zip -j ../office-mcp-server-win-x64.zip office-mcp-server.exe
-          cd ../linux-x64
-          zip -j ../office-mcp-server-linux-x64.zip office-mcp-server
 
       - name: Extract tag version
         id: version
@@ -71,24 +58,19 @@ jobs:
           prerelease: false
           files: |
             ./publish/office-mcp-server-win-x64.zip
-            ./publish/office-mcp-server-linux-x64.zip
           body: |
             ## Release ${{ steps.version.outputs.VERSION }}
 
             ### Assets
             - `office-mcp-server-win-x64.zip` — Windows (x64) self-contained executable
-            - `office-mcp-server-linux-x64.zip` — Linux (x64) self-contained executable
 
             ### Usage
-            ```bash
+            ```powershell
             # Windows
             .\\office-mcp-server.exe
 
-            # Linux
-            ./office-mcp-server
-
             # Custom port
-            ./office-mcp-server 8080
+            .\\office-mcp-server.exe 8080
             ```
 
             ### Docker
