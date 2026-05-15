@@ -38,10 +38,19 @@ Office.onReady((info) => {
 	}
 });
 
+function updateMcpStatus(connected: boolean, text?: string): void {
+	const el = document.getElementById("mcpStatus");
+	if (!el) return;
+	el.className = connected ? "badge connected" : "badge disconnected";
+	el.textContent = text ?? (connected ? "Connected" : "Disconnected");
+}
+
 async function initWithMcp(): Promise<void> {
+	updateMcpStatus(false, "Connecting...");
 	try {
 		const state = await getOfficeState();
 		instanceId = await registerWithMcp(state.app, state.documentName);
+		updateMcpStatus(true);
 		updateContextDisplay(
 			state.documentName,
 			state.slideCount,
@@ -59,6 +68,7 @@ async function initWithMcp(): Promise<void> {
 		await processPendingCommands();
 	} catch (error) {
 		console.error("Registration failed:", error);
+		updateMcpStatus(false, "Failed");
 		addLogEntry(
 			`Registration failed: ${error instanceof Error ? error.message : String(error)}`,
 		);
