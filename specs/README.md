@@ -31,11 +31,12 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 
 | #   | Spec                                  | Branch               | Scope                                                                                                                   |
 | --- | ------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 0   | [Spike](001-spike/)                   | `001-spike`          | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                      |
+| 0   | [Spike](001-spike/)                   | `001-spike`          | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                       |
 | 1   | [PowerPoint MVP](002-powerpoint-mvp/) | `002-powerpoint-mvp` | Deck outline, slide read, shape update, speaker notes, audit log, task pane                                             |
 | 2   | [Word MVP](003-word-mvp/)             | `003-word-mvp`       | Outline, paragraphs, rewrite selection (tracked changes), review comments, shared context abstraction                   |
 | 3   | [Excel MVP](004-excel-mvp/)           | `004-excel-mvp`      | Workbook map, read/write range, write formula, create table, range limits, formula validation                           |
 | 4   | [Outlook MVP](005-outlook-mvp/)       | `005-outlook-mvp`    | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate |
+| 5   | [PowerPoint v2](006-powerpoint-v2/)   | `006-powerpoint-v2`  | Full shape properties, image export, table reading, selection context, direct write operations, shape CRUD, slide management |
 
 ## Progression
 
@@ -58,6 +59,7 @@ Tools are organized by host. The MCP server registers a **host-aware tool list**
 ### Host Detection
 
 When the add-in loads, `Office.onReady((info) => ...)` provides `info.host`:
+
 - `HostType.PowerPoint` → registers as `powerpoint_N`, exposes PowerPoint tools
 - `HostType.Word` → registers as `word_N`, exposes Word tools
 - `HostType.Excel` → registers as `excel_N`, exposes Excel tools
@@ -67,21 +69,21 @@ The instance registration (`POST /instances/register`) includes the `appName` fi
 
 ### Unified vs Host-Specific Tools
 
-| Tool                              | Host         | Parameters                                                    |
-| --------------------------------- | ------------ | ------------------------------------------------------------- |
-| `office_get_active_app`           | **All**      | _(none)_ — lists all instances                                |
-| `powerpoint_get_deck_outline`     | PowerPoint   | `instanceId?`, `includeSpeakerNotes?`, `includeHiddenSlides?` |
-| `powerpoint_get_slide`            | PowerPoint   | `instanceId?`, `slideIndex` (required)                        |
-| `powerpoint_update_shape_text`    | PowerPoint   | `instanceId?`, `slideIndex`, `shapeId`, `text`                |
-| `powerpoint_update_speaker_notes` | PowerPoint   | `instanceId?`, `slideIndex`, `notes`                          |
-| `word_get_outline`                | Word         | `instanceId?`, `maxDepth?`                                    |
-| `word_rewrite_selection`          | Word         | `instanceId?`, `tone`                                         |
-| `excel_get_workbook_map`          | Excel        | `instanceId?`                                                 |
-| `excel_read_range`                | Excel        | `instanceId?`, `sheetName`, `address`                         |
-| `excel_write_range`               | Excel        | `instanceId?`, `range`, `values`                              |
-| `outlook_get_current_item`        | Outlook      | `instanceId?`                                                 |
-| `outlook_summarize_thread`        | Outlook      | `instanceId?`                                                 |
-| `outlook_draft_reply`             | Outlook      | `instanceId?`, `tone`, `keyPoints`                            |
+| Tool                              | Host       | Parameters                                                    |
+| --------------------------------- | ---------- | ------------------------------------------------------------- |
+| `office_get_active_app`           | **All**    | _(none)_ — lists all instances                                |
+| `powerpoint_get_deck_outline`     | PowerPoint | `instanceId?`, `includeSpeakerNotes?`, `includeHiddenSlides?` |
+| `powerpoint_get_slide`            | PowerPoint | `instanceId?`, `slideIndex` (required)                        |
+| `powerpoint_update_shape_text`    | PowerPoint | `instanceId?`, `slideIndex`, `shapeId`, `text`                |
+| `powerpoint_update_speaker_notes` | PowerPoint | `instanceId?`, `slideIndex`, `notes`                          |
+| `word_get_outline`                | Word       | `instanceId?`, `maxDepth?`                                    |
+| `word_rewrite_selection`          | Word       | `instanceId?`, `tone`                                         |
+| `excel_get_workbook_map`          | Excel      | `instanceId?`                                                 |
+| `excel_read_range`                | Excel      | `instanceId?`, `sheetName`, `address`                         |
+| `excel_write_range`               | Excel      | `instanceId?`, `range`, `values`                              |
+| `outlook_get_current_item`        | Outlook    | `instanceId?`                                                 |
+| `outlook_summarize_thread`        | Outlook    | `instanceId?`                                                 |
+| `outlook_draft_reply`             | Outlook    | `instanceId?`, `tone`, `keyPoints`                            |
 
 ## Workflow
 

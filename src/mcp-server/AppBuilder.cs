@@ -154,61 +154,8 @@ public static class AppBuilder
             return Results.Json(new { commands });
         });
 
-        app.MapPost("/instances/{instanceId}/confirm", async (HttpContext context, string instanceId) =>
-        {
-            using var reader = new StreamReader(context.Request.Body);
-            var json = await reader.ReadToEndAsync();
-            var data = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
-            string commandId = data.GetProperty("commandId").GetString() ?? "";
-            string confirmationToken = data.GetProperty("confirmationToken").GetString() ?? "";
-            bool approved = data.TryGetProperty("approved", out var a) && a.GetBoolean();
-
-            var confirmationStore = McpToolEngine.GetConfirmationStore();
-            var commandStore = McpToolEngine.GetCommandStore();
-
-            if (!approved)
-            {
-                // Reject: log and return error result
-                commandStore.CompleteCommand(commandId, false, "", "User rejected the change");
-                return Results.Json(new { status = "rejected" });
-            }
-
-            // Approve: re-execute the tool with the confirmation token
-            // The tool handler will validate the token and apply the change
-            if (!confirmationStore.ValidateToken(confirmationToken))
-            {
-                return Results.BadRequest(new { error = "Invalid or expired confirmation token" });
-            }
-
-            // Get the pending command to re-execute with token
-            var pendingCmd = commandStore.GetAndClaimPendingCommands(instanceId).FirstOrDefault(c => c.Id == commandId);
-            if (pendingCmd == null)
-            {
-                return Results.NotFound(new { error = "Command not found" });
-            }
-
-            // Re-execute the tool with confirmation token
-            var toolName = pendingCmd.Command;
-            var argsWithToken = new Dictionary<string, object>
-            {
-                ["instanceId"] = instanceId,
-                ["confirmationToken"] = confirmationToken
-            };
-
-            if (pendingCmd.Args is System.Text.Json.JsonElement argsEl)
-            {
-                foreach (var prop in argsEl.EnumerateObject())
-                {
-                    if (prop.Name != "confirmationToken")
-                        argsWithToken[prop.Name] = prop.Value;
-                }
-            }
-
-            var result = await McpToolEngine.ExecuteTool(toolName, System.Text.Json.JsonSerializer.SerializeToElement(argsWithToken));
-            commandStore.CompleteCommand(commandId, true, "", result);
-
-            return Results.Json(new { status = "approved", result });
-        });
+        // Confirmation endpoint removed — mutation tools now apply directly.
+        // Users create backups before enabling LLM write access.
 
         app.MapPost("/instances/{instanceId}/result", async (HttpContext context, string instanceId) =>
         {

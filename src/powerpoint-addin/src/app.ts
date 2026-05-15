@@ -205,41 +205,9 @@ async function processPendingCommands(): Promise<void> {
 	try {
 		const commands = await pollForCommands();
 		for (const cmd of commands) {
-			addLogEntry(`Received command: ${cmd.command}`);
-			// Execute the command via Office JS API
-			const result = await processCommand(cmd.id, cmd.command, cmd.args);
-
-			// Check if confirmation is required
-			if (
-				result &&
-				typeof result === "object" &&
-				"requiresConfirmation" in result
-			) {
-				const confirmationData = result as {
-					requiresConfirmation: boolean;
-					confirmationToken?: string;
-					diffPreview?: unknown;
-					toolName?: string;
-				};
-				if (
-					confirmationData.requiresConfirmation &&
-					confirmationData.confirmationToken
-				) {
-					pendingConfirmation = {
-						commandId: cmd.id,
-						toolName: confirmationData.toolName || cmd.command,
-						confirmationToken: confirmationData.confirmationToken,
-						diffPreview: confirmationData.diffPreview,
-					};
-					showDiffPreview(confirmationData.diffPreview);
-					showConfirmationPending();
-					addLogEntry(`Confirmation required for ${cmd.command}`);
-				} else {
-					addLogEntry(`Command ${cmd.id} executed successfully`);
-				}
-			} else {
-				addLogEntry(`Command ${cmd.id} executed successfully`);
-			}
+			addLogEntry(`Executing: ${cmd.command}`);
+			await processCommand(cmd.id, cmd.command, cmd.args);
+			addLogEntry(`Command ${cmd.id} completed`);
 		}
 	} catch (error) {
 		addLogEntry(

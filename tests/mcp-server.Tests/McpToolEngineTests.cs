@@ -9,20 +9,20 @@ public class McpToolEngineTests
 	{
 		McpToolEngine.ResetForTesting();
 	}
+
     [Fact]
-    public void GetToolDefinitions_ReturnsExpectedTools()
+    public void GetToolDefinitions_Returns17Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.True(tools.Length >= 5, $"Expected at least 5 tools, got {tools.Length}");
+        Assert.Equal(18, tools.Length);
     }
 
     [Fact]
-    public void GetToolDefinitions_ContainsExpectedToolNames()
+    public void GetToolDefinitions_ContainsAllToolNames()
     {
         var tools = McpToolEngine.GetToolDefinitions();
-        // Serialize to JSON to access properties on anonymous types
         var names = tools.Select(t =>
         {
             var json = JsonSerializer.Serialize(t);
@@ -30,17 +30,84 @@ public class McpToolEngineTests
             return doc.RootElement.GetProperty("name").GetString()!;
         }).ToList();
 
+        // Shared
         Assert.Contains("office_get_active_apps", names);
+
+        // Read tools
         Assert.Contains("powerpoint_get_deck_outline", names);
         Assert.Contains("powerpoint_get_slide", names);
+        Assert.Contains("powerpoint_get_slide_image", names);
+        Assert.Contains("powerpoint_get_shape_image", names);
+        Assert.Contains("powerpoint_get_table", names);
+        Assert.Contains("powerpoint_get_selection", names);
+        Assert.Contains("powerpoint_get_speaker_notes", names);
+
+        // Write tools
         Assert.Contains("powerpoint_update_shape_text", names);
+        Assert.Contains("powerpoint_update_shape_properties", names);
         Assert.Contains("powerpoint_update_speaker_notes", names);
+
+        // Shape CRUD
+        Assert.Contains("powerpoint_add_textbox", names);
+        Assert.Contains("powerpoint_add_image", names);
+        Assert.Contains("powerpoint_add_table", names);
+        Assert.Contains("powerpoint_delete_shape", names);
+
+        // Slide management
+        Assert.Contains("powerpoint_add_slide", names);
+        Assert.Contains("powerpoint_delete_slide", names);
+        Assert.Contains("powerpoint_move_slide", names);
     }
 
     [Fact]
-    public async Task ExecuteTool_NoInstances_ReturnsError()
+    public void GetToolDefinitions_AllToolsHaveRequiredFields()
     {
-        // office_get_active_apps should succeed (returns empty list)
+        var tools = McpToolEngine.GetToolDefinitions();
+
+        foreach (var tool in tools)
+        {
+            var json = JsonSerializer.Serialize(tool);
+            var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            Assert.True(root.TryGetProperty("name", out var nameEl), "Tool missing 'name'");
+            Assert.False(string.IsNullOrEmpty(nameEl.GetString()), "Tool has empty name");
+
+            Assert.True(root.TryGetProperty("description", out var descEl), $"Tool {nameEl.GetString()} missing 'description'");
+            Assert.True(descEl.GetString()!.Length > 20, $"Tool {nameEl.GetString()} has too-short description");
+
+            Assert.True(root.TryGetProperty("inputSchema", out _), $"Tool {nameEl.GetString()} missing 'inputSchema'");
+        }
+    }
+
+    [Fact]
+    public void GetToolDefinitions_PowerPointToolsRequireInstanceId()
+    {
+        var tools = McpToolEngine.GetToolDefinitions();
+
+        foreach (var tool in tools)
+        {
+            var json = JsonSerializer.Serialize(tool);
+            var doc = JsonDocument.Parse(json);
+            var name = doc.RootElement.GetProperty("name").GetString()!;
+
+            // office_get_active_apps doesn't need instanceId
+            if (name == "office_get_active_apps") continue;
+
+            var required = doc.RootElement
+                .GetProperty("inputSchema")
+                .GetProperty("required")
+                .EnumerateArray()
+                .Select(r => r.GetString()!)
+                .ToList();
+
+            Assert.Contains("instanceId", required);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteTool_NoInstances_ReturnsEmptyApps()
+    {
         var result = await McpToolEngine.ExecuteTool("office_get_active_apps", null);
 
         var json = JsonSerializer.Serialize(result);
@@ -58,5 +125,28 @@ public class McpToolEngineTests
         var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.TryGetProperty("isError", out var isError));
         Assert.True(isError.GetBoolean());
+    }
+
+    [Fact]
+    public async Task ExecuteTool_MissingInstanceId_ReturnsError()
+    {
+        var args = JsonSerializer.Deserialize<JsonElement>("{\"slideIndex\": 0}");
+        var result = await McpToolEngine.ExecuteTool("powerpoint_get_slide", args);
+
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.TryGetProperty("isError", out var isError));
+        Assert.True(isError.GetBoolean());
+    }
+
+    [Fact]
+    public async Task ExecuteTool_AliasOfficeGetActiveApp_Works()
+    {
+        var result = await McpToolEngine.ExecuteTool("office_get_active_app", null);
+
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.TryGetProperty("isError", out var isError));
+        Assert.False(isError.GetBoolean());
     }
 }

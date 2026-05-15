@@ -11,13 +11,13 @@ public static class McpToolEngine
 {
     private static InstanceRegistry _registry = new();
     private static CommandStore _commandStore = new();
-    private static ConfirmationStore _confirmationStore = new();
     private static AuditLog _auditLog = new();
 
     /// <summary>
     /// Gets all MCP tool definitions (fixed list, instance selected via parameter).
     /// </summary>
     public static object[] GetToolDefinitions() => [
+        // ── Shared ──────────────────────────────────────────────
         new
         {
             name = "office_get_active_apps",
@@ -29,10 +29,12 @@ public static class McpToolEngine
                 required = Array.Empty<string>()
             }
         },
+
+        // ── Read tools ──────────────────────────────────────────
         new
         {
             name = "powerpoint_get_deck_outline",
-            description = "Returns the full slide deck outline with titles and text content for each slide. Use office_get_active_apps first to find the right instanceId.",
+            description = "Returns the full slide deck outline. Each slide lists its shapes with type, position, size, and text content. Use office_get_active_apps first to find the right instanceId.",
             inputSchema = new
             {
                 type = "object",
@@ -48,13 +50,13 @@ public static class McpToolEngine
         new
         {
             name = "powerpoint_get_slide",
-            description = "Returns all shapes with their text content for a single slide. IMPORTANT: You MUST provide slideIndex (zero-based). Use powerpoint_get_deck_outline first to see all slide numbers.",
+            description = "Returns all shapes on a single slide with full properties: type, position (left/top), size (width/height), rotation, text content, font styling (name/size/bold/italic/color), paragraph alignment, and fill color. Use powerpoint_get_deck_outline first to see slide indices.",
             inputSchema = new
             {
                 type = "object",
                 properties = new Dictionary<string, object>
                 {
-                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'powerpoint_1')." },
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
                     ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" }
                 },
                 required = new[] { "instanceId", "slideIndex" }
@@ -62,47 +64,305 @@ public static class McpToolEngine
         },
         new
         {
-            name = "powerpoint_update_shape_text",
-            description = "Update a specific shape's text with preview. Requires user confirmation before applying.",
+            name = "powerpoint_get_slide_image",
+            description = "Renders a slide as a PNG image and returns it as base64. The LLM can use this to visually understand the slide layout and content. Optionally specify width/height to control image size (preserves aspect ratio).",
             inputSchema = new
             {
                 type = "object",
                 properties = new Dictionary<string, object>
                 {
-                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'powerpoint_1')." },
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
                     ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
-                    ["shapeId"] = new { type = "string", description = "Shape name/ID on the slide" },
-                    ["text"] = new { type = "string", description = "New text content for the shape" },
-                    ["confirmationToken"] = new { type = "string", description = "Confirmation token from pending change (required for mutations)" }
+                    ["width"] = new { type = "integer", description = "Max image width in pixels. Default: 800", @default = 800 },
+                    ["height"] = new { type = "integer", description = "Max image height in pixels. Default: omitted (auto)" }
+                },
+                required = new[] { "instanceId", "slideIndex" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_get_shape_image",
+            description = "Renders a single shape as a PNG image and returns it as base64. Useful for describing images, charts, icons, or diagrams on a slide.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["shapeId"] = new { type = "string", description = "Shape ID or name to render" },
+                    ["width"] = new { type = "integer", description = "Max image width in pixels. Default: 400", @default = 400 },
+                    ["height"] = new { type = "integer", description = "Max image height in pixels. Default: omitted (auto)" }
+                },
+                required = new[] { "instanceId", "slideIndex", "shapeId" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_get_table",
+            description = "Reads all cell text from a table shape on a slide. Returns rowCount, columnCount, and a 2D string array of cell contents.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["shapeId"] = new { type = "string", description = "Shape ID of the table" }
+                },
+                required = new[] { "instanceId", "slideIndex", "shapeId" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_get_selection",
+            description = "Returns what the user currently has selected in PowerPoint: selected text (with formatting and parent shape), selected shapes (with IDs and properties), or empty selection. Use this to understand user intent context.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_get_speaker_notes",
+            description = "Returns speaker notes for one slide or a range of slides. Specify slideIndex for a single slide, or slideRange (e.g. '2-5') for multiple.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index for a single slide" },
+                    ["slideRange"] = new { type = "string", description = "Range of slides, e.g. '2-5'" }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+
+        // ── Write tools (direct, no confirmation gate) ──────────
+        new
+        {
+            name = "powerpoint_update_shape_text",
+            description = "Updates the text content of a specific shape on a slide. Applies directly — no confirmation required. Users should create backups before enabling write access.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["shapeId"] = new { type = "string", description = "Shape ID or name" },
+                    ["text"] = new { type = "string", description = "New text content" }
                 },
                 required = new[] { "instanceId", "slideIndex", "shapeId", "text" }
             }
         },
         new
         {
-            name = "powerpoint_update_speaker_notes",
-            description = "Create or update speaker notes for selected slides.",
+            name = "powerpoint_update_shape_properties",
+            description = "Updates position, size, rotation, and/or font properties of a shape. Only specified properties are changed. Use this to resize, reposition, or restyle shapes.",
             inputSchema = new
             {
                 type = "object",
                 properties = new Dictionary<string, object>
                 {
-                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'powerpoint_1')." },
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
                     ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
-                    ["notes"] = new { type = "string", description = "Speaker notes text" },
-                    ["confirmationToken"] = new { type = "string", description = "Confirmation token from pending change (required for mutations)" }
+                    ["shapeId"] = new { type = "string", description = "Shape ID or name" },
+                    ["left"] = new { type = "number", description = "X position in points" },
+                    ["top"] = new { type = "number", description = "Y position in points" },
+                    ["width"] = new { type = "number", description = "Width in points" },
+                    ["height"] = new { type = "number", description = "Height in points" },
+                    ["rotation"] = new { type = "number", description = "Rotation in degrees" },
+                    ["fontName"] = new { type = "string", description = "Font family name (e.g. 'Arial')" },
+                    ["fontSize"] = new { type = "number", description = "Font size in points" },
+                    ["bold"] = new { type = "boolean", description = "Bold on/off" },
+                    ["italic"] = new { type = "boolean", description = "Italic on/off" },
+                    ["color"] = new { type = "string", description = "Font color as HTML hex (e.g. '#FF0000')" }
+                },
+                required = new[] { "instanceId", "slideIndex", "shapeId" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_update_speaker_notes",
+            description = "Sets speaker notes for a specific slide. Replaces any existing notes. Applies directly.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["notes"] = new { type = "string", description = "Speaker notes text" }
                 },
                 required = new[] { "instanceId", "slideIndex", "notes" }
             }
+        },
+
+        // ── Shape CRUD ──────────────────────────────────────────
+        new
+        {
+            name = "powerpoint_add_textbox",
+            description = "Creates a new text box on a slide with the specified text, position, and size. Returns the new shape's ID.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["text"] = new { type = "string", description = "Initial text content" },
+                    ["left"] = new { type = "number", description = "X position in points" },
+                    ["top"] = new { type = "number", description = "Y position in points" },
+                    ["width"] = new { type = "number", description = "Width in points" },
+                    ["height"] = new { type = "number", description = "Height in points" }
+                },
+                required = new[] { "instanceId", "slideIndex", "text", "left", "top", "width", "height" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_add_image",
+            description = "Inserts an image onto a slide from base64-encoded data. Returns the new shape's ID.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["imageBase64"] = new { type = "string", description = "Base64-encoded image data (PNG, JPG, etc.)" },
+                    ["left"] = new { type = "number", description = "X position in points" },
+                    ["top"] = new { type = "number", description = "Y position in points" },
+                    ["width"] = new { type = "number", description = "Width in points" },
+                    ["height"] = new { type = "number", description = "Height in points" }
+                },
+                required = new[] { "instanceId", "slideIndex", "imageBase64", "left", "top" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_add_table",
+            description = "Creates a new table on a slide with specified rows and columns. Returns the new shape's ID.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["rows"] = new { type = "integer", description = "Number of rows" },
+                    ["columns"] = new { type = "integer", description = "Number of columns" },
+                    ["left"] = new { type = "number", description = "X position in points" },
+                    ["top"] = new { type = "number", description = "Y position in points" },
+                    ["width"] = new { type = "number", description = "Width in points" },
+                    ["height"] = new { type = "number", description = "Height in points" }
+                },
+                required = new[] { "instanceId", "slideIndex", "rows", "columns", "left", "top" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_delete_shape",
+            description = "Deletes a shape from a slide. Irreversible — users should create backups.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
+                    ["shapeId"] = new { type = "string", description = "Shape ID or name to delete" }
+                },
+                required = new[] { "instanceId", "slideIndex", "shapeId" }
+            }
+        },
+
+        // ── Slide management ────────────────────────────────────
+        new
+        {
+            name = "powerpoint_add_slide",
+            description = "Inserts a new blank slide at the specified position. If atIndex is omitted, adds at the end.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["atIndex"] = new { type = "integer", description = "Zero-based index to insert at. Default: end of deck." }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_delete_slide",
+            description = "Deletes a slide from the presentation. Irreversible — users should create backups.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["slideIndex"] = new { type = "integer", description = "Zero-based slide index to delete" }
+                },
+                required = new[] { "instanceId", "slideIndex" }
+            }
+        },
+        new
+        {
+            name = "powerpoint_move_slide",
+            description = "Moves a slide from one position to another. Other slides shift accordingly.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["fromIndex"] = new { type = "integer", description = "Current zero-based position of the slide" },
+                    ["toIndex"] = new { type = "integer", description = "Target zero-based position" }
+                },
+                required = new[] { "instanceId", "fromIndex", "toIndex" }
+            }
         }
     ];
+
+    /// <summary>
+    /// All command names that should be dispatched to the add-in.
+    /// </summary>
+    private static readonly HashSet<string> AddInCommands = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "powerpoint_get_deck_outline",
+        "powerpoint_get_slide",
+        "powerpoint_get_slide_image",
+        "powerpoint_get_shape_image",
+        "powerpoint_get_table",
+        "powerpoint_get_selection",
+        "powerpoint_get_speaker_notes",
+        "powerpoint_update_shape_text",
+        "powerpoint_update_shape_properties",
+        "powerpoint_update_speaker_notes",
+        "powerpoint_add_textbox",
+        "powerpoint_add_image",
+        "powerpoint_add_table",
+        "powerpoint_delete_shape",
+        "powerpoint_add_slide",
+        "powerpoint_delete_slide",
+        "powerpoint_move_slide",
+    };
 
     /// <summary>
     /// Executes an MCP tool call. Routes to the appropriate add-in instance.
     /// </summary>
     public static async Task<object> ExecuteTool(string name, JsonElement? args)
     {
-        // office_get_active_apps needs no instance
+        // office_get_active_apps is handled server-side
         if (name is "office_get_active_apps" or "office_get_active_app")
             return HandleGetActiveApps();
 
@@ -131,33 +391,39 @@ public static class McpToolEngine
             };
         }
 
-        // Parse arguments
-        var inputs = args.HasValue ? JsonSerializer.Serialize(args.Value) : "{}";
-        var confirmationToken = (args.HasValue && args.Value.TryGetProperty("confirmationToken", out var ct)) ? ct.GetString() : null;
-
-        // Route to appropriate handler
-        switch (name)
+        // Validate tool name
+        if (!AddInCommands.Contains(name))
         {
-
-            case "powerpoint_get_deck_outline":
-                return await HandleGetDeckOutline(instanceId, args, inputs);
-
-            case "powerpoint_get_slide":
-                return await HandleGetSlide(instanceId, args, inputs);
-
-            case "powerpoint_update_shape_text":
-                return await HandleUpdateShapeText(instanceId, args, inputs, confirmationToken);
-
-            case "powerpoint_update_speaker_notes":
-                return await HandleUpdateSpeakerNotes(instanceId, args, inputs, confirmationToken);
-
-            default:
-                return new
-                {
-                    content = new[] { new { type = "text", text = $"Unknown tool: {name}" } },
-                    isError = true
-                };
+            return new
+            {
+                content = new[] { new { type = "text", text = $"Unknown tool: {name}" } },
+                isError = true
+            };
         }
+
+        // Dispatch command to add-in
+        var inputs = args.HasValue ? JsonSerializer.Serialize(args.Value) : "{}";
+        string commandId = Guid.NewGuid().ToString("N")[..8];
+        var cmd = new PendingCommand
+        {
+            Id = commandId,
+            InstanceId = instanceId,
+            Command = name,
+            Args = args.HasValue ? JsonSerializer.Deserialize<object>(args.Value) : null,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _commandStore.AddCommand(cmd);
+
+        _auditLog.Log(new AuditEntry
+        {
+            ToolName = name,
+            InstanceId = instanceId,
+            Inputs = inputs,
+            Outcome = "pending"
+        });
+
+        var result = await _commandStore.WaitForResult(commandId, timeoutSeconds: 60);
+        return BuildToolResult(result, name, instanceId, inputs);
     }
 
     private static object HandleGetActiveApps()
@@ -184,294 +450,6 @@ public static class McpToolEngine
             content = new[] { new { type = "text", text = JsonSerializer.Serialize(new { apps = appList, total = appList.Count }, new JsonSerializerOptions { WriteIndented = true }) } },
             isError = false
         };
-    }
-
-    private static async Task<object> HandleGetDeckOutline(string instanceId, JsonElement? args, string inputs)
-    {
-        var includeNotes = args.HasValue && args.Value.TryGetProperty("includeSpeakerNotes", out var in_) && in_.GetBoolean();
-        var includeHidden = args.HasValue && args.Value.TryGetProperty("includeHiddenSlides", out var ih) && ih.GetBoolean();
-
-        // Dispatch command to add-in to get deck outline via Office JS API
-        string commandId = Guid.NewGuid().ToString("N")[..8];
-        var cmd = new PendingCommand
-        {
-            Id = commandId,
-            InstanceId = instanceId,
-            Command = "powerpoint_get_deck_outline",
-            Args = new { includeSpeakerNotes = includeNotes, includeHiddenSlides = includeHidden },
-            CreatedAt = DateTime.UtcNow,
-        };
-        _commandStore.AddCommand(cmd);
-
-        _auditLog.Log(new AuditEntry
-        {
-            ToolName = "powerpoint_get_deck_outline",
-            InstanceId = instanceId,
-            Inputs = inputs,
-            Outcome = "pending"
-        });
-
-        var result = await _commandStore.WaitForResult(commandId, timeoutSeconds: 30);
-        return BuildToolResult(result, "powerpoint_get_deck_outline", instanceId, inputs);
-    }
-
-    private static async Task<object> HandleGetSlide(string instanceId, JsonElement? args, string inputs)
-    {
-        if (!args.HasValue || !args.Value.TryGetProperty("slideIndex", out var si) || !si.TryGetInt32(out var slideIndex))
-        {
-            return new
-            {
-                content = new[] { new { type = "text", text = "Missing required parameter: slideIndex" } },
-                isError = true
-            };
-        }
-
-        string commandId = Guid.NewGuid().ToString("N")[..8];
-        var cmd = new PendingCommand
-        {
-            Id = commandId,
-            InstanceId = instanceId,
-            Command = "powerpoint_get_slide",
-            Args = new { slideIndex },
-            CreatedAt = DateTime.UtcNow,
-        };
-        _commandStore.AddCommand(cmd);
-
-        _auditLog.Log(new AuditEntry
-        {
-            ToolName = "powerpoint_get_slide",
-            InstanceId = instanceId,
-            Inputs = inputs,
-            Outcome = "pending"
-        });
-
-        var result = await _commandStore.WaitForResult(commandId, timeoutSeconds: 30);
-        return BuildToolResult(result, "powerpoint_get_slide", instanceId, inputs);
-    }
-
-    private static async Task<object> HandleUpdateShapeText(string instanceId, JsonElement? args, string inputs, string? confirmationToken)
-    {
-        if (!args.HasValue || !args.Value.TryGetProperty("slideIndex", out var si) || !si.TryGetInt32(out var slideIndex))
-        {
-            return new
-            {
-                content = new[] { new { type = "text", text = "Missing required parameter: slideIndex" } },
-                isError = true
-            };
-        }
-
-        if (!args.HasValue || !args.Value.TryGetProperty("shapeId", out var shapeIdEl) || string.IsNullOrEmpty(shapeIdEl.GetString()))
-        {
-            return new
-            {
-                content = new[] { new { type = "text", text = "Missing required parameter: shapeId" } },
-                isError = true
-            };
-        }
-
-        if (!args.HasValue || !args.Value.TryGetProperty("text", out var textEl) || string.IsNullOrEmpty(textEl.GetString()))
-        {
-            return new
-            {
-                content = new[] { new { type = "text", text = "Missing required parameter: text" } },
-                isError = true
-            };
-        }
-
-        var newText = textEl.GetString()!;
-        var shapeId = shapeIdEl.GetString()!;
-
-        // First call (no token) → create confirmation request with diff preview
-        if (string.IsNullOrEmpty(confirmationToken))
-        {
-            var confirmation = _confirmationStore.Create(
-                "powerpoint_update_shape_text",
-                instanceId,
-                slideIndex,
-                shapeId);
-
-            // Get current text from add-in for diff (stub - would need Office JS API call)
-            var diff = new DiffPreview
-            {
-                OldText = "[current text]",
-                NewText = newText
-            };
-
-            confirmation.Diff = diff;
-
-            _auditLog.Log(new AuditEntry
-            {
-                ToolName = "powerpoint_update_shape_text",
-                InstanceId = instanceId,
-                Inputs = inputs,
-                RequiresConfirmation = true,
-                ConfirmationStatus = "pending",
-                Outcome = "confirmation_required"
-            });
-
-            return new
-            {
-                requiresConfirmation = true,
-                confirmationToken = confirmation.Token,
-                diff = diff,
-                slideIndex = slideIndex,
-                shapeId = shapeId,
-                newText = newText,
-                message = "Please review the diff and approve in the task pane"
-            };
-        }
-
-        // Second call (with token) → validate and apply
-        if (!_confirmationStore.ValidateToken(confirmationToken))
-        {
-            _auditLog.Log(new AuditEntry
-            {
-                ToolName = "powerpoint_update_shape_text",
-                InstanceId = instanceId,
-                Inputs = inputs,
-                RequiresConfirmation = true,
-                ConfirmationStatus = "rejected",
-                Outcome = "error",
-                Error = "Invalid or expired confirmation token"
-            });
-
-            return new
-            {
-                content = new[] { new { type = "text", text = "Invalid or expired confirmation token" } },
-                isError = true
-            };
-        }
-
-        // Dispatch command to add-in to apply the change
-        string commandId = Guid.NewGuid().ToString("N")[..8];
-        var cmd = new PendingCommand
-        {
-            Id = commandId,
-            InstanceId = instanceId,
-            Command = "powerpoint_update_shape_text",
-            Args = new { slideIndex, shapeId, text = newText, confirmationToken },
-            CreatedAt = DateTime.UtcNow,
-        };
-        _commandStore.AddCommand(cmd);
-
-        _auditLog.Log(new AuditEntry
-        {
-            ToolName = "powerpoint_update_shape_text",
-            InstanceId = instanceId,
-            Inputs = inputs,
-            RequiresConfirmation = true,
-            ConfirmationStatus = "approved",
-            Outcome = "pending"
-        });
-
-        var result = await _commandStore.WaitForResult(commandId, timeoutSeconds: 30);
-        return BuildToolResult(result, "powerpoint_update_shape_text", instanceId, inputs);
-    }
-
-    private static async Task<object> HandleUpdateSpeakerNotes(string instanceId, JsonElement? args, string inputs, string? confirmationToken)
-    {
-        if (!args.HasValue || !args.Value.TryGetProperty("slideIndex", out var si) || !si.TryGetInt32(out var slideIndex))
-        {
-            return new
-            {
-                content = new[] { new { type = "text", text = "Missing required parameter: slideIndex" } },
-                isError = true
-            };
-        }
-
-        if (!args.HasValue || !args.Value.TryGetProperty("notes", out var notesEl) || string.IsNullOrEmpty(notesEl.GetString()))
-        {
-            return new
-            {
-                content = new[] { new { type = "text", text = "Missing required parameter: notes" } },
-                isError = true
-            };
-        }
-
-        var newNotes = notesEl.GetString()!;
-
-        // First call (no token) → create confirmation request
-        if (string.IsNullOrEmpty(confirmationToken))
-        {
-            var confirmation = _confirmationStore.Create(
-                "powerpoint_update_speaker_notes",
-                instanceId,
-                slideIndex);
-
-            var diff = new DiffPreview
-            {
-                OldText = "[current notes]",
-                NewText = newNotes
-            };
-
-            confirmation.Diff = diff;
-
-            _auditLog.Log(new AuditEntry
-            {
-                ToolName = "powerpoint_update_speaker_notes",
-                InstanceId = instanceId,
-                Inputs = inputs,
-                RequiresConfirmation = true,
-                ConfirmationStatus = "pending",
-                Outcome = "confirmation_required"
-            });
-
-            return new
-            {
-                requiresConfirmation = true,
-                confirmationToken = confirmation.Token,
-                diff = diff,
-                slideIndex = slideIndex,
-                newNotes = newNotes,
-                message = "Please review the notes and approve in the task pane"
-            };
-        }
-
-        // Second call (with token) → validate and apply
-        if (!_confirmationStore.ValidateToken(confirmationToken))
-        {
-            _auditLog.Log(new AuditEntry
-            {
-                ToolName = "powerpoint_update_speaker_notes",
-                InstanceId = instanceId,
-                Inputs = inputs,
-                RequiresConfirmation = true,
-                ConfirmationStatus = "rejected",
-                Outcome = "error",
-                Error = "Invalid or expired confirmation token"
-            });
-
-            return new
-            {
-                content = new[] { new { type = "text", text = "Invalid or expired confirmation token" } },
-                isError = true
-            };
-        }
-
-        // Dispatch command to add-in
-        string commandId = Guid.NewGuid().ToString("N")[..8];
-        var cmd = new PendingCommand
-        {
-            Id = commandId,
-            InstanceId = instanceId,
-            Command = "powerpoint_update_speaker_notes",
-            Args = new { slideIndex, notes = newNotes, confirmationToken },
-            CreatedAt = DateTime.UtcNow,
-        };
-        _commandStore.AddCommand(cmd);
-
-        _auditLog.Log(new AuditEntry
-        {
-            ToolName = "powerpoint_update_speaker_notes",
-            InstanceId = instanceId,
-            Inputs = inputs,
-            RequiresConfirmation = true,
-            ConfirmationStatus = "approved",
-            Outcome = "pending"
-        });
-
-        var result = await _commandStore.WaitForResult(commandId, timeoutSeconds: 30);
-        return BuildToolResult(result, "powerpoint_update_speaker_notes", instanceId, inputs);
     }
 
     private static object BuildToolResult(PendingCommand? result, string toolName, string instanceId, string inputs)
@@ -526,20 +504,11 @@ public static class McpToolEngine
         };
     }
 
-    /// <summary>
-    /// Gets the registry for instance management endpoints.
-    /// </summary>
+    /// <summary>Gets the registry for instance management endpoints.</summary>
     public static InstanceRegistry GetRegistry() => _registry;
 
-    /// <summary>
-    /// Gets the command store for dispatch/wait operations.
-    /// </summary>
+    /// <summary>Gets the command store for dispatch/wait operations.</summary>
     public static CommandStore GetCommandStore() => _commandStore;
-
-    /// <summary>
-    /// Gets the confirmation store for mutation tool confirmations.
-    /// </summary>
-    public static ConfirmationStore GetConfirmationStore() => _confirmationStore;
 
     /// <summary>
     /// Resets all static state. Used by tests to isolate test runs.
@@ -548,7 +517,6 @@ public static class McpToolEngine
     {
         _registry = new InstanceRegistry();
         _commandStore = new CommandStore();
-        _confirmationStore = new ConfirmationStore();
         _auditLog = new AuditLog(Path.Combine(Path.GetTempPath(), $"audit-test-{Guid.NewGuid()}").TrimEnd('/'));
     }
 }
