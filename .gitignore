@@ -1,0 +1,10 @@
+node_modules/
+.pi/
+src/powerpoint-addin/dist/
+bin/
+obj/
+.specify/
+.pi/
+node_modules/
+dist/
+.pi-lens/

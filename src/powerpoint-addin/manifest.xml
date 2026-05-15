@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <!-- Basic Info -->
+  <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Office LLM Harness</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Office LLM Harness"/>
+  <Description DefaultValue="Connects PowerPoint to Open WebUI via a local MCP server for LLM-assisted workflows."/>
+  <IconUrl DefaultValue="http://localhost:3000/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="http://localhost:3000/assets/icon-64.png"/>
+
+  <!-- Support -->
+  <SupportUrl DefaultValue="http://localhost:3000/support.html"/>
+
+  <!-- Domains (needed for localhost dev) -->
+  <AppDomains>
+    <Domain>localhost</Domain>
+    <Domain>127.0.0.1</Domain>
+  </AppDomains>
+
+  <!-- Default Settings (overrides in VersionOverrides for production) -->
+  <Hosts>
+    <Host name="Presentation"/>
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="http://localhost:3000/taskpane.html"/>
+    <RequestedWidth>400</RequestedWidth>
+  </DefaultSettings>
+
+  <!-- Permissions -->
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>
