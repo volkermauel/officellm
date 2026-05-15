@@ -6,20 +6,23 @@
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack serve --mode development --port 3000",
-    "start": "npm run dev"
+    "start": "npm run dev",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@types/office-js": "^1.0.445",
-    "@types/jquery": "^3.5.32"
+    "@types/jquery": "^3.5.32",
+    "@types/office-js": "^1.0.445"
   },
   "devDependencies": {
-    "ts-loader": "^9.5.2",
-    "typescript": "^5.8.3",
-    "webpack": "^5.99.5",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.2",
     "copy-webpack-plugin": "^13.0.0",
     "css-loader": "^7.1.2",
-    "html-webpack-plugin": "^5.6.3"
+    "html-webpack-plugin": "^5.6.3",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.6",
+    "webpack": "^5.99.5",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
   }
 }
