@@ -124,10 +124,15 @@ export async function reportResult(
 }
 
 /**
- * Starts periodic command polling.
+ * Starts periodic command polling (fire-and-forget).
+ * Returns commands but does NOT process them — caller should use pollForCommands() directly.
  */
 export function startCommandPolling(intervalMs = 2000): void {
-	setInterval(pollForCommands, intervalMs);
+	setInterval(async () => {
+		// Just poll to keep the connection warm
+		// Actual command processing happens in app.ts processPendingCommands()
+		await pollForCommands();
+	}, intervalMs);
 }
 
 // ============================================================
@@ -147,13 +152,30 @@ export interface OfficeState {
 export function getOfficeState(): Promise<OfficeState> {
 	return new Promise((resolve) => {
 		Office.onReady((info) => {
+			// Try to get the real document name from Office context
+			let documentName = "Untitled";
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const doc: any = (window as any).Office?.context?.document;
+				if (doc?.url) {
+					// Extract filename from URL path
+					try {
+						documentName = decodeURIComponent(doc.url.split("/").pop() || "Untitled");
+					} catch {
+						documentName = doc.url;
+					}
+				}
+			} catch {
+				// Office context not available yet
+			}
+
 			resolve({
 				app: (info.host as unknown as string) || "Unknown",
-				documentName: "(loading...)",
+				documentName,
 				slideCount: 0,
 				currentSlideIndex: 0,
 			});
-		});
+			});
 	});
 }
 

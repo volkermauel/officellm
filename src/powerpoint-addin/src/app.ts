@@ -8,10 +8,8 @@
 import {
 	registerWithMcp,
 	startHeartbeat,
-	startCommandPolling,
 	pollForCommands,
 	getOfficeState,
-	sendContextToLLM,
 } from "./communication";
 import { processCommand } from "./powerpoint-commands";
 
@@ -57,14 +55,16 @@ async function initWithMcp(): Promise<void> {
 			state.currentSlideIndex,
 		);
 
-		// Start heartbeat and command polling
+		// Start heartbeat
 		startHeartbeat(10000);
-		startCommandPolling(2000);
+
+		// Start command polling — actually processes commands each poll
+		setInterval(() => processPendingCommands(), 2000);
 
 		console.log(`Add-in registered as: ${instanceId}`);
 		addLogEntry(`Registered as ${instanceId}`);
 
-		// Check for pending commands
+		// Process any already-queued commands
 		await processPendingCommands();
 	} catch (error) {
 		console.error("Registration failed:", error);
@@ -326,7 +326,18 @@ async function sendToLLM(): Promise<void> {
 	addLogEntry("Sending context to LLM via MCP...");
 
 	try {
-		await sendContextToLLM();
+		if (!instanceId) throw new Error("Not registered");
+		const response = await fetch("http://127.0.0.1:3000/mcp", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				jsonrpc: "2.0",
+				id: Date.now(),
+				method: "tools/call",
+				params: { name: "office_get_active_app", arguments: {} },
+			}),
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		addLogEntry("Context sent to LLM successfully");
 	} catch (error) {
 		addLogEntry(
