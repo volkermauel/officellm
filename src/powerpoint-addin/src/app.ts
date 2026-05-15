@@ -17,6 +17,12 @@ import { processCommand } from "./powerpoint-commands";
 
 // --- State ---
 let instanceId: string | null = null;
+let pendingConfirmation: {
+	commandId: string;
+	toolName: string;
+	confirmationToken: string;
+	diffPreview: unknown;
+} | null = null;
 
 // --- Initialization ---
 
@@ -53,6 +59,77 @@ async function initWithMcp(): Promise<void> {
 			`Registration failed: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
+}
+
+// --- Diff Preview & Confirmation ---
+
+interface DiffHunk {
+	oldStart: number;
+	oldLines: number;
+	newStart: number;
+	newLines: number;
+	lines: string[];
+}
+
+interface DiffPreview {
+	toolName: string;
+	diff: {
+		paths: Array<{
+			path: string;
+			hunks: DiffHunk[];
+		}>;
+	};
+}
+
+function showDiffPreview(diffData: unknown): void {
+	const diffSection = document.getElementById("diffSection");
+	const beforeContent = document.getElementById("diffBeforeContent");
+	const afterContent = document.getElementById("diffAfterContent");
+
+	if (!diffSection || !beforeContent || !afterContent) return;
+
+	// Parse diff data
+	const diff = diffData as DiffPreview;
+	let beforeText = "";
+	let afterText = "";
+
+	if (diff.diff && diff.diff.paths) {
+		for (const pathEntry of diff.diff.paths) {
+			for (const hunk of pathEntry.hunks) {
+				for (const line of hunk.lines) {
+					if (line.startsWith("-")) {
+						beforeText += line + "\n";
+					} else if (line.startsWith("+")) {
+						afterText += line + "\n";
+					} else if (!line.startsWith("@@")) {
+						beforeText += line + "\n";
+						afterText += line + "\n";
+					}
+				}
+			}
+		}
+	}
+
+	beforeContent.textContent = beforeText || "(no changes)";
+	afterContent.textContent = afterText || "(no changes)";
+
+	diffSection.classList.add("active");
+	addLogEntry(`Diff preview shown for ${diff.toolName}`);
+}
+
+function hideDiffPreview(): void {
+	const diffSection = document.getElementById("diffSection");
+	if (diffSection) diffSection.classList.remove("active");
+}
+
+function showConfirmationPending(): void {
+	const el = document.getElementById("confirmationPending");
+	if (el) el.classList.add("active");
+}
+
+function hideConfirmationPending(): void {
+	const el = document.getElementById("confirmationPending");
+	if (el) el.classList.remove("active");
 }
 
 // --- UI Updates ---
@@ -112,8 +189,32 @@ async function processPendingCommands(): Promise<void> {
 		for (const cmd of commands) {
 			addLogEntry(`Received command: ${cmd.command}`);
 			// Execute the command via Office JS API
-			await processCommand(cmd.id, cmd.command, cmd.args);
-			addLogEntry(`Command ${cmd.id} executed successfully`);
+			const result = await processCommand(cmd.id, cmd.command, cmd.args);
+
+			// Check if confirmation is required
+			if (result && typeof result === "object" && "requiresConfirmation" in result) {
+				const confirmationData = result as {
+					requiresConfirmation: boolean;
+					confirmationToken?: string;
+					diffPreview?: unknown;
+					toolName?: string;
+				};
+				if (confirmationData.requiresConfirmation && confirmationData.confirmationToken) {
+					pendingConfirmation = {
+						commandId: cmd.id,
+						toolName: confirmationData.toolName || cmd.command,
+						confirmationToken: confirmationData.confirmationToken,
+						diffPreview: confirmationData.diffPreview,
+					};
+					showDiffPreview(confirmationData.diffPreview);
+					showConfirmationPending();
+					addLogEntry(`Confirmation required for ${cmd.command}`);
+				} else {
+					addLogEntry(`Command ${cmd.id} executed successfully`);
+				}
+			} else {
+				addLogEntry(`Command ${cmd.id} executed successfully`);
+			}
 		}
 	} catch (error) {
 		addLogEntry(
@@ -148,6 +249,64 @@ async function refreshContext(): Promise<void> {
 	}
 }
 
+// --- Confirmation Actions ---
+
+async function approveChange(): Promise<void> {
+	if (!pendingConfirmation || !instanceId) return;
+
+	try {
+		await fetch(
+			`http://127.0.0.1:3000/instances/${instanceId}/confirm`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					commandId: pendingConfirmation.commandId,
+					confirmationToken: pendingConfirmation.confirmationToken,
+					approved: true,
+				}),
+			},
+		);
+		addLogEntry(`Change approved: ${pendingConfirmation.toolName}`);
+	} catch (error) {
+		addLogEntry(
+			`Approval failed: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	} finally {
+		hideDiffPreview();
+		hideConfirmationPending();
+		pendingConfirmation = null;
+	}
+}
+
+async function rejectChange(): Promise<void> {
+	if (!pendingConfirmation || !instanceId) return;
+
+	try {
+		await fetch(
+			`http://127.0.0.1:3000/instances/${instanceId}/confirm`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					commandId: pendingConfirmation.commandId,
+					confirmationToken: pendingConfirmation.confirmationToken,
+					approved: false,
+				}),
+			},
+		);
+		addLogEntry(`Change rejected: ${pendingConfirmation.toolName}`);
+	} catch (error) {
+		addLogEntry(
+			`Rejection failed: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	} finally {
+		hideDiffPreview();
+		hideConfirmationPending();
+		pendingConfirmation = null;
+	}
+}
+
 async function sendToLLM(): Promise<void> {
 	addLogEntry("Sending context to LLM via MCP...");
 
@@ -166,11 +325,15 @@ declare global {
 	interface Window {
 		refreshContext: () => Promise<void>;
 		sendToLLM: () => Promise<void>;
+		approveChange: () => Promise<void>;
+		rejectChange: () => Promise<void>;
 	}
 }
 
 window.refreshContext = refreshContext;
 window.sendToLLM = sendToLLM;
+window.approveChange = approveChange;
+window.rejectChange = rejectChange;
 
 // --- Start ---
 

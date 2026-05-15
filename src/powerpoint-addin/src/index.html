@@ -216,6 +216,110 @@
         border-bottom: none;
       }
 
+      /* Diff Preview & Confirmation */
+      .diff-section {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 12px;
+        display: none;
+      }
+
+      .diff-section.active {
+        display: block;
+      }
+
+      .diff-header {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      .diff-container {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .diff-panel {
+        flex: 1;
+        padding: 10px;
+        border-radius: 8px;
+        font-family: Consolas, Monaco, monospace;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .diff-before {
+        background: #fff5f5;
+        border: 1px solid #fecaca;
+      }
+
+      .diff-after {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+      }
+
+      .diff-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 4px;
+      }
+
+      .diff-before .diff-label {
+        color: #a52727;
+      }
+
+      .diff-after .diff-label {
+        color: var(--ok);
+      }
+
+      .diff-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .btn-approve {
+        background: var(--ok);
+        color: white;
+      }
+
+      .btn-approve:hover {
+        background: #0a5c3b;
+      }
+
+      .btn-reject {
+        background: #fff0f0;
+        color: #a52727;
+        border: 1px solid #fecaca;
+      }
+
+      .btn-reject:hover {
+        background: #ffe0e0;
+      }
+
+      .confirmation-pending {
+        padding: 12px;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        color: #92400e;
+        margin-bottom: 12px;
+        display: none;
+      }
+
+      .confirmation-pending.active {
+        display: block;
+      }
+
       .loading {
         text-align: center;
         color: var(--muted);
@@ -304,6 +408,34 @@
         >
           🤖 Ask LLM (Send Context)
         </button>
+      </div>
+
+      <!-- Confirmation Pending -->
+      <div class="confirmation-pending" id="confirmationPending">
+        ⚠️ Awaiting your decision on a pending change.
+      </div>
+
+      <!-- Diff Preview -->
+      <div class="diff-section" id="diffSection">
+        <div class="diff-header">Change Preview</div>
+        <div class="diff-container">
+          <div class="diff-panel diff-before">
+            <div class="diff-label">Before</div>
+            <div id="diffBeforeContent"></div>
+          </div>
+          <div class="diff-panel diff-after">
+            <div class="diff-label">After</div>
+            <div id="diffAfterContent"></div>
+          </div>
+        </div>
+        <div class="diff-actions">
+          <button class="btn btn-approve" id="btnApprove" onclick="approveChange()">
+            ✓ Approve
+          </button>
+          <button class="btn btn-reject" id="btnReject" onclick="rejectChange()">
+            ✕ Reject
+          </button>
+        </div>
       </div>
 
       <!-- Activity Log -->
