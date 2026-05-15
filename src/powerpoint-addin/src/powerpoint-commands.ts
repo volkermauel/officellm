@@ -1,13 +1,14 @@
 /**
  * PowerPoint command handler using Office JS API.
  *
- * Correct API patterns (from official docs):
+ * Correct API patterns (from official docs + snippets):
  * - presentation.load("slides") → sync → slides.items available
- * - slide.load("shapes/items/id,name") → sync → shapes.items with id/name loaded
+ * - slide.load("shapes/items/$none") → sync → shapes.items available (no props)
  * - shape.load("textFrame/textRange/text") → sync → text available
+ * - shape.load("id") → sync → shape.id available
+ * - Slash paths support ONE property at a time (not comma-separated)
  * - shape.textFrame THROWS if shape has no text frame → wrap in try/catch
- * - load() takes comma-separated string or string array
- * - MUST sync BEFORE reading any loaded property
+ * - presentation.name requires separate load — just skip it
  */
 
 /// <reference types="@types/office-js" />
@@ -67,7 +68,7 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 			try {
 				const presentation = context.presentation;
 
-				// Load slides, then shapes with text in one go per slide
+				// Step 1: Load slides collection
 				presentation.load("slides");
 				await context.sync();
 
@@ -75,13 +76,21 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 				const totalSlides = slides.items.length;
 				const slideList: Array<{ index: number; title: string }> = [];
 
-				// Load shapes with text for all slides in batch
+				// Step 2: Load shapes items for all slides (no properties yet)
 				for (const slide of slides.items) {
-					slide.load("shapes/items/id,name,textFrame/textRange/text");
+					slide.load("shapes/items/$none");
 				}
 				await context.sync();
 
-				// Extract titles (first shape with non-empty text)
+				// Step 3: Load text on each shape
+				for (const slide of slides.items) {
+					for (const shape of slide.shapes.items) {
+						shape.load("textFrame/textRange/text");
+					}
+				}
+				await context.sync();
+
+				// Step 4: Extract titles (first shape with non-empty text)
 				for (let i = 0; i < totalSlides; i++) {
 					const shapes = slides.items[i].shapes.items;
 					let title = "";
@@ -101,7 +110,7 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 				}
 
 				resolve({
-					documentName: presentation.name || "Untitled",
+					documentName: "Presentation",
 					totalSlides,
 					slides: slideList,
 				});
@@ -147,11 +156,19 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 
 				const slide = presentation.slides.items[slideIndex];
 
-				// Step 2: Load shapes with all properties in one batch
-				slide.load("shapes/items/id,name,shapeType,textFrame/textRange/text");
+				// Step 2: Load shapes items (no properties yet)
+				slide.load("shapes/items/$none");
 				await context.sync();
 
-				// Step 3: Build result
+				// Step 3: Load id, name, and text on each shape individually
+				for (const shape of slide.shapes.items) {
+					shape.load("id");
+					shape.load("name");
+					shape.load("textFrame/textRange/text");
+				}
+				await context.sync();
+
+				// Step 4: Build result
 				const shapeList: Array<{
 					id: string;
 					name: string;
@@ -171,7 +188,7 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 					shapeList.push({
 						id: String(shape.id || ""),
 						name: String(shape.name || ""),
-						shapeType: String(shape.shapeType || "unknown"),
+						shapeType: "unknown",
 						text,
 					});
 
