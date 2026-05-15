@@ -19,10 +19,11 @@
   <!-- Support -->
   <SupportUrl DefaultValue="{{BASE_URL}}/"/>
 
-  <!-- Domains (needed for localhost dev) -->
+  <!-- Domains (needed for localhost dev and production) -->
   <AppDomains>
-    <Domain>localhost</Domain>
-    <Domain>127.0.0.1</Domain>
+    <AppDomain>{{BASE_URL}}</AppDomain>
+    <AppDomain>http://localhost</AppDomain>
+    <AppDomain>http://127.0.0.1</AppDomain>
   </AppDomains>
 
   <!-- Default Settings (overrides in VersionOverrides for production) -->
