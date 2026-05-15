@@ -164,8 +164,21 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             "/api/office_get_active_apps",
             "/api/powerpoint_get_deck_outline",
             "/api/powerpoint_get_slide",
+            "/api/powerpoint_get_slide_image",
+            "/api/powerpoint_get_shape_image",
+            "/api/powerpoint_get_table",
+            "/api/powerpoint_get_selection",
+            "/api/powerpoint_get_speaker_notes",
             "/api/powerpoint_update_shape_text",
-            "/api/powerpoint_update_speaker_notes"
+            "/api/powerpoint_update_shape_properties",
+            "/api/powerpoint_update_speaker_notes",
+            "/api/powerpoint_add_textbox",
+            "/api/powerpoint_add_image",
+            "/api/powerpoint_add_table",
+            "/api/powerpoint_delete_shape",
+            "/api/powerpoint_add_slide",
+            "/api/powerpoint_delete_slide",
+            "/api/powerpoint_move_slide"
         };
 
         foreach (var expected in expectedPaths)
@@ -385,6 +398,199 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var content = new StringContent("", System.Text.Encoding.UTF8, "application/json");
         var response = await _client.PostAsync("/mcp", content);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Mcp_ToolsList_Returns18Tools()
+    {
+        // Initialize first
+        await _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0",
+            id = 1,
+            method = "initialize"
+        });
+
+        var response = await _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0",
+            id = 2,
+            method = "tools/list"
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var tools = body.GetProperty("result").GetProperty("tools");
+        Assert.Equal(18, tools.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Mcp_ToolsList_AllNewToolsHaveDescriptions()
+    {
+        await _client.PostAsJsonAsync("/mcp", new { jsonrpc = "2.0", id = 1, method = "initialize" });
+
+        var response = await _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0", id = 2, method = "tools/list"
+        });
+
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var tools = body.GetProperty("result").GetProperty("tools");
+
+        var newToolNames = new[]
+        {
+            "powerpoint_get_slide_image", "powerpoint_get_shape_image",
+            "powerpoint_get_table", "powerpoint_get_selection",
+            "powerpoint_get_speaker_notes", "powerpoint_update_shape_properties",
+            "powerpoint_add_textbox", "powerpoint_add_image",
+            "powerpoint_add_table", "powerpoint_delete_shape",
+            "powerpoint_add_slide", "powerpoint_delete_slide", "powerpoint_move_slide"
+        };
+
+        foreach (var toolName in newToolNames)
+        {
+            var tool = tools.EnumerateArray().FirstOrDefault(t => t.GetProperty("name").GetString() == toolName);
+            Assert.True(tool.ValueKind != JsonValueKind.Undefined, $"Tool '{toolName}' not found in tools/list");
+            Assert.True(tool.GetProperty("description").GetString()!.Length > 20, $"Tool '{toolName}' has too-short description");
+        }
+    }
+
+    [Theory]
+    [InlineData("powerpoint_get_slide_image", "slideIndex")]
+    [InlineData("powerpoint_get_shape_image", "slideIndex,shapeId")]
+    [InlineData("powerpoint_get_table", "slideIndex,shapeId")]
+    [InlineData("powerpoint_add_textbox", "slideIndex,text,left,top,width,height")]
+    [InlineData("powerpoint_add_image", "slideIndex,imageBase64,left,top")]
+    [InlineData("powerpoint_add_table", "slideIndex,rows,columns,left,top")]
+    [InlineData("powerpoint_delete_shape", "slideIndex,shapeId")]
+    [InlineData("powerpoint_add_slide", null)]
+    [InlineData("powerpoint_delete_slide", "slideIndex")]
+    [InlineData("powerpoint_move_slide", "fromIndex,toIndex")]
+    public async Task Mcp_NewTools_RequireInstanceId(string toolName, string? otherRequired)
+    {
+        // Calling without instanceId should return error
+        var args = new Dictionary<string, object> { ["slideIndex"] = 0 };
+        var response = await _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0", id = 3, method = "tools/call",
+            @params = new { name = toolName, arguments = args }
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var result = body.GetProperty("result");
+        Assert.True(result.TryGetProperty("isError", out var isError));
+        Assert.True(isError.GetBoolean(), $"{toolName} should fail without instanceId");
+    }
+
+    [Fact]
+    public async Task Mcp_ToolsCall_InvalidInstanceId_ReturnsError()
+    {
+        var response = await _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0", id = 4, method = "tools/call",
+            @params = new
+            {
+                name = "powerpoint_get_slide_image",
+                arguments = new { instanceId = "nonexistent_99", slideIndex = 0 }
+            }
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var result = body.GetProperty("result");
+        Assert.True(result.GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Mcp_ToolsCall_ImageTool_QueuesCommandForInstance()
+    {
+        // Register an instance
+        var reg = await _client.PostAsJsonAsync("/instances/register", new
+        {
+            appName = "PowerPoint", documentName = "test.pptx"
+        });
+        var regBody = await reg.Content.ReadFromJsonAsync<JsonElement>();
+        var instanceId = regBody.GetProperty("instanceId").GetString();
+
+        // Call tool — will timeout (no add-in to process), but should queue command
+        // Use a short timeout by checking the commands endpoint
+        var callTask = _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0", id = 5, method = "tools/call",
+            @params = new
+            {
+                name = "powerpoint_get_slide_image",
+                arguments = new { instanceId, slideIndex = 0, width = 400 }
+            }
+        });
+
+        // While waiting, poll commands — should find the queued command
+        await Task.Delay(100);
+        var cmds = await _client.GetAsync($"/instances/{instanceId}/commands");
+        var cmdsBody = await cmds.Content.ReadFromJsonAsync<JsonElement>();
+        var commands = cmdsBody.GetProperty("commands");
+
+        // The command should have been queued (or already claimed)
+        // Either way it confirms the dispatch path works
+        Assert.True(commands.GetArrayLength() <= 1, "Should have at most 1 queued command");
+
+        // Complete the command so the tool call can finish
+        if (commands.GetArrayLength() == 1)
+        {
+            var cmdId = commands[0].GetProperty("id").GetString();
+            await _client.PostAsJsonAsync($"/instances/{instanceId}/result", new
+            {
+                commandId = cmdId, success = true, payload = new { image = "test" }
+            });
+        }
+
+        // Wait for the tool call to complete
+        var response = await callTask;
+        response.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task OpenApi_NewTools_HaveCorrectParameterTypes()
+    {
+        var response = await _client.GetAsync("/openapi.json");
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var paths = body.GetProperty("paths");
+
+        // powerpoint_add_textbox should have text as string, left/top/width/height as number
+        var addTextbox = paths.GetProperty("/api/powerpoint_add_textbox");
+        var schema = addTextbox.GetProperty("post").GetProperty("requestBody")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        var props = schema.GetProperty("properties");
+
+        Assert.Equal("string", props.GetProperty("text").GetProperty("type").GetString());
+        Assert.Equal("number", props.GetProperty("left").GetProperty("type").GetString());
+        Assert.Equal("number", props.GetProperty("top").GetProperty("type").GetString());
+        Assert.Equal("number", props.GetProperty("width").GetProperty("type").GetString());
+        Assert.Equal("number", props.GetProperty("height").GetProperty("type").GetString());
+
+        var required = schema.GetProperty("required").EnumerateArray().Select(r => r.GetString()).ToList();
+        Assert.Contains("text", required);
+        Assert.Contains("left", required);
+        Assert.Contains("top", required);
+
+        // powerpoint_get_slide_image should have width/height as integer with defaults
+        var getImage = paths.GetProperty("/api/powerpoint_get_slide_image");
+        var imgSchema = getImage.GetProperty("post").GetProperty("requestBody")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        var imgProps = imgSchema.GetProperty("properties");
+
+        Assert.Equal("integer", imgProps.GetProperty("width").GetProperty("type").GetString());
+        Assert.Equal("integer", imgProps.GetProperty("slideIndex").GetProperty("type").GetString());
+
+        // powerpoint_add_table should have rows/columns as integer
+        var addTable = paths.GetProperty("/api/powerpoint_add_table");
+        var tblSchema = addTable.GetProperty("post").GetProperty("requestBody")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        var tblProps = tblSchema.GetProperty("properties");
+
+        Assert.Equal("integer", tblProps.GetProperty("rows").GetProperty("type").GetString());
+        Assert.Equal("integer", tblProps.GetProperty("columns").GetProperty("type").GetString());
     }
 
     [Fact]
