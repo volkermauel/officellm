@@ -13,6 +13,7 @@ import {
 	getOfficeState,
 	sendContextToLLM,
 } from "./communication";
+import { processCommand } from "./powerpoint-commands";
 
 // --- State ---
 let instanceId: string | null = null;
@@ -110,9 +111,9 @@ async function processPendingCommands(): Promise<void> {
 		const commands = await pollForCommands();
 		for (const cmd of commands) {
 			addLogEntry(`Received command: ${cmd.command}`);
-			// Commands will be executed when the Office JS API is available
-			// For now, just acknowledge receipt
-			addLogEntry(`Command ${cmd.id} queued for execution`);
+			// Execute the command via Office JS API
+			await processCommand(cmd.id, cmd.command, cmd.args);
+			addLogEntry(`Command ${cmd.id} executed successfully`);
 		}
 	} catch (error) {
 		addLogEntry(
