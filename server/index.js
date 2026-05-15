@@ -10,10 +10,7 @@ const DIST_DIR = path.join(__dirname, "dist");
 const manifestTemplatePath = path.join(__dirname, "manifest.xml");
 const manifestTemplate = fs.readFileSync(manifestTemplatePath, "utf-8");
 
-// Serve static files from dist directory
-app.use(express.static(DIST_DIR));
-
-// Dynamic manifest endpoint - infers URL from request Host header
+// Dynamic manifest endpoint - MUST be before static files middleware
 app.get("/manifest.xml", (req, res) => {
 	const scheme = req.protocol; // 'http' or 'https'
 	const host = req.get("Host"); // 'localhost:3000' or 'officellm.apps.rp.alliance.co.uk'
@@ -30,9 +27,12 @@ app.get("/manifest.xml", (req, res) => {
 });
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+app.get("/health", (_req, res) => {
 	res.json({ status: "ok" });
 });
+
+// Serve static files from dist directory (after dynamic routes)
+app.use(express.static(DIST_DIR));
 
 app.listen(PORT, () => {
 	console.log(`Office LLM Harness static server listening on port ${PORT}`);
