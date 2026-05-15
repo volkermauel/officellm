@@ -1,14 +1,14 @@
 /**
  * PowerPoint command handler using Office JS API.
  *
- * Correct API patterns (from official docs + snippets):
- * - presentation.load("slides") → sync → slides.items available
- * - slide.load("shapes/items/$none") → sync → shapes.items available (no props)
- * - shape.load("textFrame/textRange/text") → sync → text available
- * - shape.load("id") → sync → shape.id available
- * - Slash paths support ONE property at a time (not comma-separated)
- * - shape.textFrame THROWS if shape has no text frame → wrap in try/catch
- * - presentation.name requires separate load — just skip it
+ * Critical API rules:
+ * - shape.textFrame THROWS InvalidArgument → use getTextFrameOrNullObject()
+ * - getTextFrameOrNullObject() returns object with isNullObject=true if no text
+ * - shape.load("id") loads ONE property, shape.load("id,name") loads multiple
+ * - slide.load("shapes/items/$none") loads collection items without properties
+ * - slash paths like "textFrame/textRange/text" load nested props
+ * - MUST sync() before reading ANY loaded property
+ * - load() errors fire at sync() time, not at load() time
  */
 
 /// <reference types="@types/office-js" />
@@ -55,20 +55,13 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const PowerPoint: any = (window as any).PowerPoint;
 	if (!PowerPoint || typeof PowerPoint.run !== "function") {
-		return {
-			documentName: "(unknown)",
-			totalSlides: 0,
-			slides: [],
-			error: "PowerPoint.run() not available",
-		};
+		return { documentName: "(unknown)", totalSlides: 0, slides: [], error: "PowerPoint.run() not available" };
 	}
 
 	return new Promise((resolve) => {
 		PowerPoint.run(async (context: any) => {
 			try {
 				const presentation = context.presentation;
-
-				// Step 1: Load slides collection
 				presentation.load("slides");
 				await context.sync();
 
@@ -76,48 +69,46 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 				const totalSlides = slides.items.length;
 				const slideList: Array<{ index: number; title: string }> = [];
 
-				// Step 2: Load shapes items for all slides (no properties yet)
+				// Load shapes items for all slides
 				for (const slide of slides.items) {
 					slide.load("shapes/items/$none");
 				}
 				await context.sync();
 
-				// Step 3: Load text on each shape
+				// For each shape, get text via getTextFrameOrNullObject
 				for (const slide of slides.items) {
 					for (const shape of slide.shapes.items) {
-						shape.load("textFrame/textRange/text");
+						const tf = shape.getTextFrameOrNullObject();
+						tf.load("textRange/text");
 					}
 				}
 				await context.sync();
 
-				// Step 4: Extract titles (first shape with non-empty text)
+				// Extract titles
 				for (let i = 0; i < totalSlides; i++) {
 					const shapes = slides.items[i].shapes.items;
 					let title = "";
 
 					for (const shape of shapes) {
 						try {
-							const text = String(shape.textFrame?.textRange?.text || "").trim();
-							if (text && !title) {
-								title = text;
+							const tf = shape.getTextFrameOrNullObject();
+							if (!tf.isNullObject && tf.textRange?.text) {
+								const text = String(tf.textRange.text).trim();
+								if (text && !title) {
+									title = text;
+								}
 							}
 						} catch {
-							// shape has no textFrame
+							// skip
 						}
 					}
 
 					slideList.push({ index: i, title: title || `Slide ${i + 1}` });
 				}
 
-				resolve({
-					documentName: "Presentation",
-					totalSlides,
-					slides: slideList,
-				});
+				resolve({ documentName: "Presentation", totalSlides, slides: slideList });
 			} catch (error) {
-				resolve({
-					error: `PowerPoint.run failed: ${error instanceof Error ? error.message : String(error)}`,
-				});
+				resolve({ error: `PowerPoint.run failed: ${error instanceof Error ? error.message : String(error)}` });
 			}
 		});
 	});
@@ -130,22 +121,13 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const PowerPoint: any = (window as any).PowerPoint;
 	if (!PowerPoint || typeof PowerPoint.run !== "function") {
-		return {
-			slideIndex,
-			title: "(not available)",
-			shapes: [],
-			speakerNotes: "",
-			isHidden: false,
-			error: "PowerPoint.run() not available",
-		};
+		return { slideIndex, title: "(not available)", shapes: [], speakerNotes: "", isHidden: false, error: "PowerPoint.run() not available" };
 	}
 
 	return new Promise((resolve) => {
 		PowerPoint.run(async (context: any) => {
 			try {
 				const presentation = context.presentation;
-
-				// Step 1: Load slides
 				presentation.load("slides");
 				await context.sync();
 
@@ -156,33 +138,32 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 
 				const slide = presentation.slides.items[slideIndex];
 
-				// Step 2: Load shapes items (no properties yet)
+				// Step 1: Load shapes items
 				slide.load("shapes/items/$none");
 				await context.sync();
 
-				// Step 3: Load id, name, and text on each shape individually
+				// Step 2: Load id + name on each shape, and text via getTextFrameOrNullObject
 				for (const shape of slide.shapes.items) {
 					shape.load("id");
 					shape.load("name");
-					shape.load("textFrame/textRange/text");
+					const tf = shape.getTextFrameOrNullObject();
+					tf.load("textRange/text");
 				}
 				await context.sync();
 
-				// Step 4: Build result
-				const shapeList: Array<{
-					id: string;
-					name: string;
-					shapeType: string;
-					text: string;
-				}> = [];
-
+				// Step 3: Build result
+				const shapeList: Array<{ id: string; name: string; shapeType: string; text: string }> = [];
 				let slideTitle = "";
+
 				for (const shape of slide.shapes.items) {
 					let text = "";
 					try {
-						text = String(shape.textFrame?.textRange?.text || "");
+						const tf = shape.getTextFrameOrNullObject();
+						if (!tf.isNullObject && tf.textRange?.text) {
+							text = String(tf.textRange.text);
+						}
 					} catch {
-						// no text frame
+						// no text
 					}
 
 					shapeList.push({
@@ -205,53 +186,20 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 					isHidden: false,
 				});
 			} catch (error) {
-				resolve({
-					error: `PowerPoint.run failed: ${error instanceof Error ? error.message : String(error)}`,
-				});
+				resolve({ error: `PowerPoint.run failed: ${error instanceof Error ? error.message : String(error)}` });
 			}
 		});
 	});
 }
 
 async function handleUpdateShapeText(args: unknown): Promise<unknown> {
-	const config = args as {
-		slideIndex?: number;
-		shapeId?: string;
-		text?: string;
-		confirmationToken?: string;
-	};
-
-	const {
-		slideIndex = 0,
-		shapeId = "",
-		text = "",
-		confirmationToken: _confirmationToken,
-	} = config;
-
-	return {
-		slideIndex,
-		shapeId,
-		newText: text,
-		message: "Shape text update simulated (not yet implemented)",
-	};
+	const config = args as { slideIndex?: number; shapeId?: string; text?: string; confirmationToken?: string };
+	const { slideIndex = 0, shapeId = "", text = "", confirmationToken: _ct } = config;
+	return { slideIndex, shapeId, newText: text, message: "Shape text update simulated (not yet implemented)" };
 }
 
 async function handleUpdateSpeakerNotes(args: unknown): Promise<unknown> {
-	const config = args as {
-		slideIndex?: number;
-		notes?: string;
-		confirmationToken?: string;
-	};
-
-	const {
-		slideIndex = 0,
-		notes = "",
-		confirmationToken: _confirmationToken,
-	} = config;
-
-	return {
-		slideIndex,
-		newNotes: notes,
-		message: "Speaker notes update simulated (not yet implemented)",
-	};
+	const config = args as { slideIndex?: number; notes?: string; confirmationToken?: string };
+	const { slideIndex = 0, notes = "", confirmationToken: _ct } = config;
+	return { slideIndex, newNotes: notes, message: "Speaker notes update simulated (not yet implemented)" };
 }
