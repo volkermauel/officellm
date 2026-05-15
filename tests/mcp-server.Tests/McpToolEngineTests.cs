@@ -16,7 +16,7 @@ public class McpToolEngineTests
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(18, tools.Length);
+        Assert.Equal(26, tools.Length);
     }
 
     [Fact]
@@ -57,6 +57,16 @@ public class McpToolEngineTests
         Assert.Contains("powerpoint_add_slide", names);
         Assert.Contains("powerpoint_delete_slide", names);
         Assert.Contains("powerpoint_move_slide", names);
+
+        // Word tools
+        Assert.Contains("word_get_outline", names);
+        Assert.Contains("word_get_paragraphs", names);
+        Assert.Contains("word_get_selection", names);
+        Assert.Contains("word_search", names);
+        Assert.Contains("word_replace_text", names);
+        Assert.Contains("word_insert_text", names);
+        Assert.Contains("word_add_comment", names);
+        Assert.Contains("word_delete_paragraph", names);
     }
 
     [Fact]

@@ -178,7 +178,17 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             "/api/powerpoint_delete_shape",
             "/api/powerpoint_add_slide",
             "/api/powerpoint_delete_slide",
-            "/api/powerpoint_move_slide"
+            "/api/powerpoint_move_slide",
+
+            // Word
+            "/api/word_get_outline",
+            "/api/word_get_paragraphs",
+            "/api/word_get_selection",
+            "/api/word_search",
+            "/api/word_replace_text",
+            "/api/word_insert_text",
+            "/api/word_add_comment",
+            "/api/word_delete_paragraph"
         };
 
         foreach (var expected in expectedPaths)
@@ -401,7 +411,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Mcp_ToolsList_Returns18Tools()
+    public async Task Mcp_ToolsList_Returns26Tools()
     {
         // Initialize first
         await _client.PostAsJsonAsync("/mcp", new
@@ -421,7 +431,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         var tools = body.GetProperty("result").GetProperty("tools");
-        Assert.Equal(18, tools.GetArrayLength());
+        Assert.Equal(26, tools.GetArrayLength());
     }
 
     [Fact]

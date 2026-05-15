@@ -12,7 +12,18 @@ import {
 	getOfficeState,
 	MCP_SERVER_URL,
 } from "./communication";
-import { processCommand } from "./powerpoint-commands";
+import { processCommand as processPptCommand } from "./powerpoint-commands";
+import { processCommand as processWordCommand } from "./word-commands";
+
+// --- Host-aware command dispatch ---
+const currentHost: string = "PowerPoint";
+
+function processCommand(commandId: string, commandName: string, args: unknown): Promise<unknown> {
+	if (commandName.startsWith("word_")) {
+		return processWordCommand(commandId, commandName, args);
+	}
+	return processPptCommand(commandId, commandName, args);
+}
 
 // --- State ---
 let instanceId: string | null = null;

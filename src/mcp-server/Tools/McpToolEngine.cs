@@ -330,6 +330,136 @@ public static class McpToolEngine
                 },
                 required = new[] { "instanceId", "fromIndex", "toIndex" }
             }
+        },
+
+        // ── Word Read tools ───────────────────────────────────────
+        new
+        {
+            name = "word_get_outline",
+            description = "Returns the document outline (headings with levels, styles, and text). Use office_get_active_apps first to find the right instanceId.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["maxDepth"] = new { type = "integer", description = "Maximum heading level to include (1-9). Default: 3", @default = 3 }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "word_get_paragraphs",
+            description = "Returns paragraphs from the document body, optionally filtered by range (startIndex, count).",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["startIndex"] = new { type = "integer", description = "Zero-based paragraph index to start from. Default: 0", @default = 0 },
+                    ["count"] = new { type = "integer", description = "Maximum paragraphs to return. Default: 50", @default = 50 }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "word_get_selection",
+            description = "Returns the currently selected text in Word, with paragraph context and formatting.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "word_search",
+            description = "Searches the document for text and returns matching paragraphs with their locations.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["searchText"] = new { type = "string", description = "Text to search for" },
+                    ["matchCase"] = new { type = "boolean", description = "Case-sensitive search. Default: false", @default = false }
+                },
+                required = new[] { "instanceId", "searchText" }
+            }
+        },
+
+        // ── Word Write tools ──────────────────────────────────────
+        new
+        {
+            name = "word_replace_text",
+            description = "Replaces text in a specific paragraph by index. Applies directly — users should create backups.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["paragraphIndex"] = new { type = "integer", description = "Zero-based paragraph index" },
+                    ["oldText"] = new { type = "string", description = "Text to find and replace within the paragraph" },
+                    ["newText"] = new { type = "string", description = "Replacement text" }
+                },
+                required = new[] { "instanceId", "paragraphIndex", "oldText", "newText" }
+            }
+        },
+        new
+        {
+            name = "word_insert_text",
+            description = "Inserts text at a specific location (before/after a paragraph, or at the end of the document).",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["text"] = new { type = "string", description = "Text to insert" },
+                    ["insertLocation"] = new { type = "string", description = "Where to insert: 'end' (default), 'afterParagraph', 'beforeParagraph'", @default = "end" },
+                    ["paragraphIndex"] = new { type = "integer", description = "Zero-based paragraph index (required for afterParagraph/beforeParagraph)" }
+                },
+                required = new[] { "instanceId", "text" }
+            }
+        },
+        new
+        {
+            name = "word_add_comment",
+            description = "Adds a Word comment to the current selection or a specific paragraph.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["commentText"] = new { type = "string", description = "Comment text to add" },
+                    ["paragraphIndex"] = new { type = "integer", description = "Optional: zero-based paragraph to attach comment to. Default: current selection." }
+                },
+                required = new[] { "instanceId", "commentText" }
+            }
+        },
+        new
+        {
+            name = "word_delete_paragraph",
+            description = "Deletes a paragraph by index. Irreversible — users should create backups.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["paragraphIndex"] = new { type = "integer", description = "Zero-based paragraph index to delete" }
+                },
+                required = new[] { "instanceId", "paragraphIndex" }
+            }
         }
     ];
 
@@ -355,6 +485,16 @@ public static class McpToolEngine
         "powerpoint_add_slide",
         "powerpoint_delete_slide",
         "powerpoint_move_slide",
+
+        // Word
+        "word_get_outline",
+        "word_get_paragraphs",
+        "word_get_selection",
+        "word_search",
+        "word_replace_text",
+        "word_insert_text",
+        "word_add_comment",
+        "word_delete_paragraph",
     };
 
     /// <summary>
