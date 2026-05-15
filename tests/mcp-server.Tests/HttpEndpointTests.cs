@@ -16,6 +16,8 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     public HttpEndpointTests(WebApplicationFactory<Program> factory)
     {
         _client = factory.CreateClient();
+        // Reset static state before each test class run
+        Tools.McpToolEngine.ResetForTesting();
     }
 
     // --- Health ---
