@@ -1,0 +1,41 @@
+# ============================================================
+# Office LLM Harness — Production Values
+# ============================================================
+# DO NOT commit secrets or internal URLs — added to .gitignore
+# Usage: helm install officellm ./helm/office-llm-harness -f values-production.yaml
+
+image:
+  repository: ghcr.io/volkermauel/officellm-static
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    cert-manager.io/cluster-issuer: "internal-acme"
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
+  hosts:
+    - host: officellm.apps.rp.alliance.co.uk
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: officellm-tls
+      hosts:
+        - officellm.apps.rp.alliance.co.uk
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

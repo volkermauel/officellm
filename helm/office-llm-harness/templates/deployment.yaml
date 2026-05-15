@@ -1,13 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: { { include "office-llm-harness.fullname" . } }
-  labels: { { - include "office-llm-harness.labels" . | nindent 4 } }
+  name: {{ include "office-llm-harness.fullname" . }}
+  labels:
+    {{- include "office-llm-harness.labels" . | nindent 4 }}
 spec:
-  replicas: { { .Values.replicaCount } }
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      { { - include "office-llm-harness.selectorLabels" . | nindent 6 } }
+      {{- include "office-llm-harness.selectorLabels" . | nindent 6 }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -16,17 +17,18 @@ spec:
   template:
     metadata:
       labels:
-        { { - include "office-llm-harness.selectorLabels" . | nindent 8 } }
+        {{- include "office-llm-harness.selectorLabels" . | nindent 8 }}
     spec:
       containers:
         - name: nginx
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: { { .Values.image.pullPolicy } }
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 80
               name: http
               protocol: TCP
-          resources: { { - toYaml .Values.resources | nindent 12 } }
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /
