@@ -36,15 +36,13 @@ public class McpToolEngineTests
     [Fact]
     public async Task ExecuteTool_NoInstances_ReturnsError()
     {
-        // The McpToolEngine uses a static registry — in a fresh test process,
-        // no instances are registered, so any tool call should return an error.
+        // office_get_active_apps should succeed (returns empty list)
         var result = await McpToolEngine.ExecuteTool("office_get_active_apps", null);
 
-        // Result should be an anonymous object with isError = true
         var json = JsonSerializer.Serialize(result);
         var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.TryGetProperty("isError", out var isError));
-        Assert.True(isError.GetBoolean());
+        Assert.False(isError.GetBoolean());
     }
 
     [Fact]

@@ -205,14 +205,14 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     // --- REST API Bridge ---
 
     [Fact]
-    public async Task ApiBridge_OfficeGetActiveApp_NoInstances_ReturnsError()
+    public async Task ApiBridge_OfficeGetActiveApps_ReturnsSuccess()
     {
         var response = await _client.PostAsJsonAsync("/api/office_get_active_apps", new { });
 
-        response.EnsureSuccessStatusCode(); // 200 with error payload
+        response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(body.TryGetProperty("isError", out var isError));
-        Assert.True(isError.GetBoolean());
+        Assert.False(isError.GetBoolean());
     }
 
     [Fact]
@@ -289,11 +289,34 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var slideProps = getSlide.GetProperty("inputSchema").GetProperty("properties");
         Assert.True(slideProps.GetProperty("slideIndex").GetProperty("type").GetString() == "integer");
         var required = getSlide.GetProperty("inputSchema").GetProperty("required");
-        Assert.Equal("slideIndex", required[0].GetString());
+        Assert.Contains("instanceId", required.EnumerateArray().Select(r => r.GetString()));
+        Assert.Contains("slideIndex", required.EnumerateArray().Select(r => r.GetString()));
     }
 
     [Fact]
-    public async Task Mcp_ToolsCall_NoInstances_ReturnsError()
+    public async Task Mcp_ToolsCall_NoInstanceId_ReturnsError()
+    {
+        var response = await _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0",
+            id = 3,
+            method = "tools/call",
+            @params = new
+            {
+                name = "powerpoint_get_deck_outline",
+                arguments = new { }
+            }
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var result = body.GetProperty("result");
+        Assert.True(result.TryGetProperty("isError", out var isError));
+        Assert.True(isError.GetBoolean());
+    }
+
+    [Fact]
+    public async Task Mcp_OfficeGetActiveApps_ReturnsSuccess()
     {
         var response = await _client.PostAsJsonAsync("/mcp", new
         {
@@ -311,7 +334,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         var result = body.GetProperty("result");
         Assert.True(result.TryGetProperty("isError", out var isError));
-        Assert.True(isError.GetBoolean());
+        Assert.False(isError.GetBoolean());
     }
 
     [Fact]

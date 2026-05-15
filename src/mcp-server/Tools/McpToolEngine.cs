@@ -21,7 +21,7 @@ public static class McpToolEngine
         new
         {
             name = "office_get_active_apps",
-            description = "Returns a list of all registered Office instances (PowerPoint, Word, Excel, Outlook) with their document names. Use this to discover which documents are open and let the user choose which one to work with.",
+            description = "Returns a list of all registered Office instances (PowerPoint, Word, Excel, Outlook) with their document names. Call this FIRST so the user can choose which document to work with. Then pass the chosen instanceId to all other tools.",
             inputSchema = new
             {
                 type = "object",
@@ -38,11 +38,11 @@ public static class McpToolEngine
                 type = "object",
                 properties = new Dictionary<string, object>
                 {
-                    ["instanceId"] = new { type = "string", description = "Target instance ID (e.g. 'powerpoint_1'). Omit to use the most recently registered instance." },
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'powerpoint_1')." },
                     ["includeSpeakerNotes"] = new { type = "boolean", description = "Include speaker notes in the outline", @default = false },
                     ["includeHiddenSlides"] = new { type = "boolean", description = "Include hidden slides in the outline", @default = false }
                 },
-                required = Array.Empty<string>()
+                required = new[] { "instanceId" }
             }
         },
         new
@@ -54,10 +54,10 @@ public static class McpToolEngine
                 type = "object",
                 properties = new Dictionary<string, object>
                 {
-                    ["instanceId"] = new { type = "string", description = "Target instance ID (e.g. 'powerpoint_1'). Omit to use the most recently registered instance." },
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'powerpoint_1')." },
                     ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" }
                 },
-                required = new[] { "slideIndex" }
+                required = new[] { "instanceId", "slideIndex" }
             }
         },
         new
@@ -69,13 +69,13 @@ public static class McpToolEngine
                 type = "object",
                 properties = new Dictionary<string, object>
                 {
-                    ["instanceId"] = new { type = "string", description = "Target instance ID (e.g. 'powerpoint_1'). Omit to use the most recently registered instance." },
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'powerpoint_1')." },
                     ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
                     ["shapeId"] = new { type = "string", description = "Shape name/ID on the slide" },
                     ["text"] = new { type = "string", description = "New text content for the shape" },
                     ["confirmationToken"] = new { type = "string", description = "Confirmation token from pending change (required for mutations)" }
                 },
-                required = new[] { "slideIndex", "shapeId", "text" }
+                required = new[] { "instanceId", "slideIndex", "shapeId", "text" }
             }
         },
         new
@@ -87,12 +87,12 @@ public static class McpToolEngine
                 type = "object",
                 properties = new Dictionary<string, object>
                 {
-                    ["instanceId"] = new { type = "string", description = "Target instance ID (e.g. 'powerpoint_1'). Omit to use the most recently registered instance." },
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'powerpoint_1')." },
                     ["slideIndex"] = new { type = "integer", description = "Zero-based slide index" },
                     ["notes"] = new { type = "string", description = "Speaker notes text" },
                     ["confirmationToken"] = new { type = "string", description = "Confirmation token from pending change (required for mutations)" }
                 },
-                required = new[] { "slideIndex", "notes" }
+                required = new[] { "instanceId", "slideIndex", "notes" }
             }
         }
     ];
@@ -102,24 +102,22 @@ public static class McpToolEngine
     /// </summary>
     public static async Task<object> ExecuteTool(string name, JsonElement? args)
     {
-        // Extract instanceId from args, default to most recent registered instance
+        // office_get_active_apps needs no instance
+        if (name is "office_get_active_apps" or "office_get_active_app")
+            return HandleGetActiveApps();
+
+        // All other tools require an explicit instanceId
         string? instanceId = null;
         if (args.HasValue && args.Value.TryGetProperty("instanceId", out var iid))
             instanceId = iid.GetString();
 
-        // If no instanceId specified, use the most recent active instance
         if (string.IsNullOrEmpty(instanceId))
         {
-            var instances = _registry.GetActiveInstances();
-            if (!instances.Any())
+            return new
             {
-                return new
-                {
-                    content = new[] { new { type = "text", text = "No Office instances registered. Open PowerPoint and load the add-in." } },
-                    isError = true
-                };
-            }
-            instanceId = instances.Last().InstanceId;
+                content = new[] { new { type = "text", text = "Missing required parameter: instanceId. Call office_get_active_apps first to get the list of available instances." } },
+                isError = true
+            };
         }
 
         // Check if instance exists
@@ -128,7 +126,7 @@ public static class McpToolEngine
         {
             return new
             {
-                content = new[] { new { type = "text", text = $"Instance {instanceId} is not registered or has timed out." } },
+                content = new[] { new { type = "text", text = $"Instance '{instanceId}' is not registered or has timed out. Call office_get_active_apps to see current instances." } },
                 isError = true
             };
         }
@@ -140,11 +138,6 @@ public static class McpToolEngine
         // Route to appropriate handler
         switch (name)
         {
-            case "office_get_active_apps":
-                return HandleGetActiveApps();
-
-            case "office_get_active_app":
-                return HandleGetActiveApps();
 
             case "powerpoint_get_deck_outline":
                 return await HandleGetDeckOutline(instanceId, args, inputs);
