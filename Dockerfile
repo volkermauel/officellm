@@ -8,7 +8,7 @@ FROM node:20-alpine AS addin-builder
 WORKDIR /build/addin
 
 COPY src/powerpoint-addin/package.json src/powerpoint-addin/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY src/powerpoint-addin/webpack.config.js ./
 COPY src/powerpoint-addin/tsconfig.json ./
