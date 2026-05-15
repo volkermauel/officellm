@@ -1,13 +1,13 @@
 /**
  * PowerPoint command handler using Office JS API.
  *
- * Key Office JS patterns (PowerPoint):
+ * Correct API patterns (from official docs):
  * - presentation.load("slides") → sync → slides.items available
- * - slide.load("shapes") → sync → shapes.items available
- * - shape.load("id,name,textFrame") → sync → properties available
- * - load() takes a COMMA-SEPARATED STRING, not an array
+ * - slide.load("shapes/items/id,name") → sync → shapes.items with id/name loaded
+ * - shape.load("textFrame/textRange/text") → sync → text available
+ * - shape.textFrame THROWS if shape has no text frame → wrap in try/catch
+ * - load() takes comma-separated string or string array
  * - MUST sync BEFORE reading any loaded property
- * - slide.name is internal ("Slide 1"), NOT the title text
  */
 
 /// <reference types="@types/office-js" />
@@ -67,53 +67,33 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 			try {
 				const presentation = context.presentation;
 
-				// Step 1: Load slides collection
+				// Load slides, then shapes with text in one go per slide
 				presentation.load("slides");
 				await context.sync();
 
 				const slides = presentation.slides;
 				const totalSlides = slides.items.length;
-
-				// Step 2: Load shapes for each slide
-				for (const slide of slides.items) {
-					slide.load("shapes");
-				}
-				await context.sync();
-
-				// Step 3: Load textFrame on each shape
-				for (const slide of slides.items) {
-					for (const shape of slide.shapes.items) {
-						shape.load("textFrame");
-					}
-				}
-				await context.sync();
-
-				// Step 4: Load text on each textFrame
-				for (const slide of slides.items) {
-					for (const shape of slide.shapes.items) {
-						if (shape.textFrame) {
-							shape.textFrame.load("text");
-						}
-					}
-				}
-				await context.sync();
-
-				// Step 5: Extract titles
 				const slideList: Array<{ index: number; title: string }> = [];
+
+				// Load shapes with text for all slides in batch
+				for (const slide of slides.items) {
+					slide.load("shapes/items/id,name,textFrame/textRange/text");
+				}
+				await context.sync();
+
+				// Extract titles (first shape with non-empty text)
 				for (let i = 0; i < totalSlides; i++) {
 					const shapes = slides.items[i].shapes.items;
 					let title = "";
 
 					for (const shape of shapes) {
 						try {
-							if (shape.textFrame?.text) {
-								const text = String(shape.textFrame.text).trim();
-								if (text && !title) {
-									title = text;
-								}
+							const text = String(shape.textFrame?.textRange?.text || "").trim();
+							if (text && !title) {
+								title = text;
 							}
 						} catch {
-							// skip
+							// shape has no textFrame
 						}
 					}
 
@@ -167,29 +147,11 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 
 				const slide = presentation.slides.items[slideIndex];
 
-				// Step 2: Load shapes
-				slide.load("shapes");
+				// Step 2: Load shapes with all properties in one batch
+				slide.load("shapes/items/id,name,shapeType,textFrame/textRange/text");
 				await context.sync();
 
-				// Step 3: Load shape properties
-				for (const shape of slide.shapes.items) {
-					shape.load("id,name,shapeType,textFrame");
-				}
-				await context.sync();
-
-				// Step 4: Load text
-				for (const shape of slide.shapes.items) {
-					try {
-						if (shape.textFrame) {
-							shape.textFrame.load("text");
-						}
-					} catch {
-						// no text frame
-					}
-				}
-				await context.sync();
-
-				// Step 5: Build result
+				// Step 3: Build result
 				const shapeList: Array<{
 					id: string;
 					name: string;
@@ -201,11 +163,9 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 				for (const shape of slide.shapes.items) {
 					let text = "";
 					try {
-						if (shape.textFrame?.text) {
-							text = String(shape.textFrame.text);
-						}
+						text = String(shape.textFrame?.textRange?.text || "");
 					} catch {
-						// no text
+						// no text frame
 					}
 
 					shapeList.push({
