@@ -10,7 +10,7 @@
 
 ## Architecture
 
-The MCP server acts as a central hub. Word Office JS Add-ins register with instance IDs like `word_1`, `word_2`. Tools accept optional `instanceId` parameter to target specific instances. Shared document context abstraction provides unified response structure across hosts.
+The MCP server acts as a central hub. The **unified Office JS Add-in** auto-detects the host via `Office.onReady(info.host)`. For Word instances, the add-in registers with host type `Word` and instance IDs like `word_1`, `word_2`. Tools accept optional `instanceId` parameter to target specific instances. Shared document context abstraction provides unified response structure across hosts.
 
 ```
 Open WebUI                    MCP Server (port 3000)              Office Add-ins

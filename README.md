@@ -42,11 +42,11 @@ For **mutation tools** (`update_shape_text`, `update_speaker_notes`), step 2–4
 
 ## Components
 
-| Component             | Language        | Description                                                                                                           |
-| --------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **MCP Server**        | C# (.NET 8)     | Self-contained executable exposing MCP tools over Streamable HTTP. Command dispatch, instance registry, confirmation flow, audit logging. |
-| **PowerPoint Add-in** | TypeScript/HTML | Office JS Add-in running as a task pane in PowerPoint. Polls MCP server for commands, executes via `PowerPoint.run()`. |
-| **Express Server**    | Node.js         | Serves static add-in files + dynamic `manifest.xml` (URLs from Host header). Docker/K8s deployment. |
+| Component             | Language        | Description                                                                                                                               |
+| --------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **MCP Server**           | C# (.NET 8)     | Self-contained executable exposing MCP tools over Streamable HTTP. Command dispatch, instance registry, confirmation flow, audit logging. |
+| **Unified Office Add-in** | TypeScript/HTML | Single Office JS Add-in that auto-detects host (Word/Excel/PowerPoint/Outlook) via `Office.onReady()`. One manifest for all hosts. |
+| **Express Server**       | Node.js         | Serves static add-in files + dynamic `manifest.xml` (URLs from Host header). Docker/K8s deployment.                                       |
 
 ## Project Structure
 
@@ -59,8 +59,8 @@ src/
 │   │   └── McpResponse.cs
 │   └── Tools/
 │       └── OfficeTools.cs
-├── powerpoint-addin/     # Office JS PowerPoint Add-in
-│   ├── manifest.xml      # Add-in manifest
+├── powerpoint-addin/     # Unified Office JS Add-in (all hosts)
+│   ├── manifest.xml      # Unified manifest (Presentation + Document + Workbook + Mailbox)
 │   ├── package.json
 │   ├── webpack.config.js
 │   ├── tsconfig.json
@@ -232,12 +232,13 @@ The add-in must be tested in a real Windows Office environment:
 
 ## CI/CD
 
-| Workflow | Trigger | Jobs |
-|----------|---------|------|
-| `ci.yml` | Push to master/main | Build+Test → Docker push (`ghcr.io/volkermauel/officellm-static:latest`) → Windows `.exe` artifact |
-| `release.yml` | Tag `v*` | GitHub Release with `.exe` + Docker semver tag |
+| Workflow      | Trigger             | Jobs                                                                                               |
+| ------------- | ------------------- | -------------------------------------------------------------------------------------------------- |
+| `ci.yml`      | Push to master/main | Build+Test → Docker push (`ghcr.io/volkermauel/officellm-static:latest`) → Windows `.exe` artifact |
+| `release.yml` | Tag `v*`            | GitHub Release with `.exe` + Docker semver tag                                                     |
 
 Download latest exe:
+
 ```bash
 gh run download --name office-mcp-server-win-x64
 ```

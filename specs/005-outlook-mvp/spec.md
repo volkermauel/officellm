@@ -10,7 +10,7 @@
 
 ## Architecture
 
-The MCP server acts as a central hub. Outlook Office JS Add-ins register with instance IDs like `outlook_1`, `outlook_2`. Tools accept optional `instanceId` parameter to target specific instances. Sending operations require explicit user confirmation via the Outlook UI — never executed from an LLM tool call alone.
+The MCP server acts as a central hub. The **unified Office JS Add-in** auto-detects the host via `Office.onReady(info.host)`. For Outlook instances, the add-in registers with host type `Outlook` and instance IDs like `outlook_1`, `outlook_2`. Tools accept optional `instanceId` parameter to target specific instances. Sending operations require explicit user confirmation via the Outlook UI — never executed from an LLM tool call alone.
 
 ```
 Open WebUI                    MCP Server (port 3000)              Office Add-ins

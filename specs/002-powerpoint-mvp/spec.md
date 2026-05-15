@@ -10,7 +10,7 @@
 
 ## Architecture
 
-The MCP server acts as a central hub. Office JS Add-ins register themselves, send heartbeats, poll for commands, and report results. Each registered instance gets a unique ID (e.g., `powerpoint_1`, `powerpoint_2`). Tools accept an optional `instanceId` parameter to target specific instances.
+The MCP server acts as a central hub. The **unified Office JS Add-in** auto-detects the host via `Office.onReady(info.host)` and registers with the appropriate host type. For PowerPoint instances, the add-in provides PowerPoint-specific command handlers. Each registered instance gets a unique ID (e.g., `powerpoint_1`, `powerpoint_2`). Tools accept an optional `instanceId` parameter to target specific instances.
 
 ```
 Open WebUI                    MCP Server (port 3000)              Office Add-ins
@@ -115,7 +115,7 @@ A security-conscious user or IT admin reviews the local audit log to understand 
 - **FR-007**: All mutation tools MUST generate a before/after diff preview viewable in the task pane.
 - **FR-008**: The Office JS Add-in MUST display a task pane showing current context (active presentation, selected slide) and pending change previews.
 - **FR-009**: The MCP server MUST write every tool call to a local audit log file (JSONL format) with timestamp, tool name, instanceId, inputs, confirmation status, and outcome.
-- **FR-010**: The add-in MUST support multiple concurrent instances (e.g., two PowerPoint windows) each with independent state.
+- **FR-010**: The unified add-in MUST support multiple concurrent instances (e.g., two PowerPoint windows) each with independent state. Host detection is automatic via `Office.onReady()`.
 
 ### Key Entities
 

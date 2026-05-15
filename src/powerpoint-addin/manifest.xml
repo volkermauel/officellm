@@ -12,7 +12,7 @@
   <ProviderName>Office LLM Harness</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Office LLM Harness"/>
-  <Description DefaultValue="Connects PowerPoint to Open WebUI via a local MCP server for LLM-assisted workflows."/>
+  <Description DefaultValue="Connects Office (Word, Excel, PowerPoint, Outlook) to Open WebUI via a local MCP server for LLM-assisted workflows."/>
   <IconUrl DefaultValue="{{BASE_URL}}/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="{{BASE_URL}}/assets/icon-64.png"/>
 
@@ -27,8 +27,12 @@
   </AppDomains>
 
   <!-- Default Settings (overrides in VersionOverrides for production) -->
+  <!-- Hosts (unified manifest — works in all Office hosts) -->
   <Hosts>
     <Host Name="Presentation"/>
+    <Host Name="Document"/>
+    <Host Name="Workbook"/>
+    <Host Name="Mailbox"/>
   </Hosts>
   <DefaultSettings>
     <SourceLocation DefaultValue="{{BASE_URL}}/index.html"/>

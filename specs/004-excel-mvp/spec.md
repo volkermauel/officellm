@@ -10,7 +10,7 @@
 
 ## Architecture
 
-The MCP server acts as a central hub. Excel Office JS Add-ins register with instance IDs like `excel_1`, `excel_2`. Tools accept optional `instanceId` parameter to target specific instances.
+The MCP server acts as a central hub. The **unified Office JS Add-in** auto-detects the host via `Office.onReady(info.host)`. For Excel instances, the add-in registers with host type `Excel` and instance IDs like `excel_1`, `excel_2`. Tools accept optional `instanceId` parameter to target specific instances.
 
 ```
 Open WebUI                    MCP Server (port 3000)              Office Add-ins

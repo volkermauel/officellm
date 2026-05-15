@@ -29,9 +29,10 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 **Key design decisions:**
 
 - **Central hub**: Single MCP server process, one port (3000)
+- **Unified add-in**: One Office JS Add-in, one manifest — auto-detects host via `Office.onReady(info.host)` and adapts behavior accordingly
 - **Add-ins connect TO server**: Office JS Add-in registers on load, polls for commands
-- **Fixed tool list**: Tools have optional `instanceId` parameter (defaults to most recent instance)
-- **Multiple instances**: Each PowerPoint session gets its own registered instance
+- **Host-aware routing**: Instance registration includes host type; MCP server routes commands to host-appropriate handlers
+- **Multiple instances**: Each Office session gets its own registered instance with host prefix (e.g., `powerpoint_1`, `word_2`)
 - **Transport**: Streamable HTTP + stdio (MCPo compatible) + OpenAPI REST bridge
 
 ## User Scenarios & Testing
@@ -54,18 +55,19 @@ A developer starts the MCP server, opens PowerPoint with the Office JS Add-in lo
 
 ### User Story 2 — Add-in registers and stays alive (Priority: P1)
 
-A developer loads the PowerPoint Office JS Add-in. The add-in automatically registers itself with the MCP server, receives a unique instance ID (e.g., `powerpoint_1`), and begins sending heartbeats every 10 seconds to stay alive. If the add-in stops responding for 30 seconds, the MCP server marks it as timed out.
+A developer loads the Office JS Add-in in any Office host (PowerPoint, Word, Excel, or Outlook). The add-in auto-detects the host via `Office.onReady(info.host)`, registers itself with the MCP server, receives a unique instance ID (e.g., `powerpoint_1`, `word_1`), and begins sending heartbeats every 10 seconds to stay alive. If the add-in stops responding for 60 seconds, the MCP server removes the instance.
 
-**Why this priority**: Validates the registration and heartbeat mechanism that enables multiple concurrent Office sessions.
+**Why this priority**: Validates the host-agnostic registration and heartbeat mechanism that enables multiple concurrent Office sessions across different hosts.
 
-**Independent Test**: Load the add-in, check MCP server logs for registration, verify heartbeat endpoint receives periodic requests, verify timeout cleanup works.
+**Independent Test**: Load the add-in in PowerPoint and Word, check MCP server logs for registration with correct host type, verify heartbeat endpoint receives periodic requests, verify timeout cleanup works.
 
 **Acceptance Scenarios**:
 
-1. **Given** PowerPoint with a presentation open, **When** the add-in loads, **Then** the MCP server registers an instance with ID `powerpoint_1` and documents the presentation name
-2. **Given** the add-in is running, **When** 10 seconds pass, **Then** the MCP server receives a heartbeat and updates the instance's last-seen timestamp
-3. **Given** the add-in closes without unregistering, **When** 30 seconds pass, **Then** the MCP server marks the instance as timed out and removes it from active instances
-4. **Given** two PowerPoint presentations are open, **When** both add-ins load, **Then** the MCP server registers two separate instances (`powerpoint_1` and `powerpoint_2`)
+1. **Given** PowerPoint with a presentation open, **When** the add-in loads, **Then** the MCP server registers an instance with ID `powerpoint_1` and `appName: "PowerPoint"`
+2. **Given** Word with a document open, **When** the add-in loads, **Then** the MCP server registers an instance with ID `word_1` and `appName: "Word"`
+3. **Given** the add-in is running, **When** 10 seconds pass, **Then** the MCP server receives a heartbeat and updates the instance's last-seen timestamp
+4. **Given** the add-in closes without unregistering, **When** 60 seconds pass, **Then** the MCP server removes the instance from active instances
+5. **Given** PowerPoint and Word are both open, **When** both add-ins load, **Then** the MCP server registers two separate instances (`powerpoint_1` and `word_1`) with correct host types
 
 ---
 
@@ -88,7 +90,7 @@ A developer configures Open WebUI's External Tools with the local MCP endpoint a
 
 ### Edge Cases
 
-- What happens when multiple Office hosts are running simultaneously (e.g., PowerPoint and Word)? The spike only targets PowerPoint; other hosts will register with different prefixes (e.g., `word_1`).
+- What happens when multiple Office hosts are running simultaneously (e.g., PowerPoint and Word)? Each host registers with its own prefix (`powerpoint_1`, `word_1`) and the MCP server routes commands to the appropriate host-specific handlers.
 - What happens when the MCP server port is already in use? The server should report an error and exit gracefully.
 - How does the system behave when Open WebUI is on a different machine? Out of scope for spike — documented as a known limitation.
 - What happens when an add-in crashes without unregistering? The heartbeat timeout (30s) handles this automatically.
@@ -100,11 +102,12 @@ A developer configures Open WebUI's External Tools with the local MCP endpoint a
 - **FR-001**: The MCP server MUST run on a single configurable port (default: 3000) and expose Streamable HTTP (`/mcp`), stdio, and OpenAPI REST bridge (`/api/*`) transports.
 - **FR-002**: The MCP server MUST expose `office_get_active_app` as a tool that returns a list of all registered Office instances.
 - **FR-003**: The MCP server MUST expose `powerpoint_get_deck_outline` with optional `instanceId`, `includeSpeakerNotes`, and `includeHiddenSlides` parameters.
-- **FR-004**: The Office JS Add-in MUST register itself with the MCP server on load via POST `/instances/register`.
+- **FR-004**: The unified Office JS Add-in MUST auto-detect its host via `Office.onReady(info.host)` and register with the appropriate host type (PowerPoint, Word, Excel, Outlook).
+- **FR-005**: The Office JS Add-in MUST register itself with the MCP server on load via POST `/instances/register`, including `appName` derived from `info.host`.
 - **FR-005**: The Office JS Add-in MUST send heartbeats every 10 seconds via POST `/instances/{id}/heartbeat`.
 - **FR-006**: The Office JS Add-in MUST poll for pending commands every 2 seconds via GET `/instances/{id}/commands`.
 - **FR-007**: The Office JS Add-in MUST report command results via POST `/instances/{id}/result`.
-- **FR-008**: The MCP server MUST auto-cleanup timed-out instances (no heartbeat for 30 seconds).
+- **FR-008**: The MCP server MUST auto-cleanup timed-out instances (no heartbeat for 60 seconds) by removing them from the registry.
 - **FR-009**: Tool calls with no `instanceId` MUST default to the most recently registered active instance.
 - **FR-010**: The MCP server MUST support MCPo integration via stdio JSON-RPC transport.
 - **FR-011**: The MCP server MUST expose an OpenAPI 3.0 specification at `GET /openapi.json` that describes all registered MCP tools as REST endpoints.
