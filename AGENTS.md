@@ -20,7 +20,7 @@ If tests fail — **do not commit**. Fix the root cause, re-run, and only commit
 When implementing new features or fixing bugs, follow this order:
 
 1. **Architecture** — Understand the codebase, identify affected modules, plan the approach
-2. **Tests first** — Write tests that express the expected behavior *before* implementation
+2. **Tests first** — Write tests that express the expected behavior _before_ implementation
 3. **Implementation** — Write the code to make those tests pass
 4. **Verification** — Run the full test suite to confirm nothing is broken
 
@@ -69,18 +69,18 @@ specs/                        # Speckit specifications
 
 ## Available Endpoints
 
-| Transport | Endpoint | Purpose |
-|-----------|----------|---------|
-| Streamable HTTP | `POST /mcp` | MCP protocol (initialize, tools/list, tools/call) |
-| REST Bridge | `GET /openapi.json` | OpenAPI 3.0 spec for non-MCP clients |
-| REST Bridge | `POST /api/{toolName}` | Direct REST calls to any MCP tool |
-| Swagger UI | `GET /docs` | Interactive API documentation |
-| Instance mgmt | `POST /instances/register` | Add-in registration |
-| Instance mgmt | `POST /instances/:id/heartbeat` | Keep-alive (every 10s) |
-| Instance mgmt | `GET /instances/:id/commands` | Poll for pending commands |
-| Instance mgmt | `POST /instances/:id/result` | Report command results |
-| Health | `GET /health` | Server health check |
-| Stdio | stdin/stdout | MCPo-compatible JSON-RPC transport |
+| Transport       | Endpoint                        | Purpose                                           |
+| --------------- | ------------------------------- | ------------------------------------------------- |
+| Streamable HTTP | `POST /mcp`                     | MCP protocol (initialize, tools/list, tools/call) |
+| REST Bridge     | `GET /openapi.json`             | OpenAPI 3.0 spec for non-MCP clients              |
+| REST Bridge     | `POST /api/{toolName}`          | Direct REST calls to any MCP tool                 |
+| Swagger UI      | `GET /docs`                     | Interactive API documentation                     |
+| Instance mgmt   | `POST /instances/register`      | Add-in registration                               |
+| Instance mgmt   | `POST /instances/:id/heartbeat` | Keep-alive (every 10s)                            |
+| Instance mgmt   | `GET /instances/:id/commands`   | Poll for pending commands                         |
+| Instance mgmt   | `POST /instances/:id/result`    | Report command results                            |
+| Health          | `GET /health`                   | Server health check                               |
+| Stdio           | stdin/stdout                    | MCPo-compatible JSON-RPC transport                |
 
 ## Build Commands
 
@@ -111,6 +111,7 @@ dotnet run --project src/mcp-server/ 8080
 ## Speckit Workflow
 
 For feature development, follow the speckit workflow:
+
 1. `/speckit.specify` — Refine the specification
 2. `/speckit.plan` — Create implementation plan
 3. `/speckit.tasks` — Generate actionable tasks
