@@ -312,33 +312,33 @@ public static class AppBuilder
                 var tool = (dynamic)toolObj;
                 string toolName = tool.name;
                 string description = tool.description;
-                var inputSchema = tool.inputSchema;
 
                 var propDict = new Dictionary<string, object>();
                 var requiredList = new List<string>();
 
-                if (inputSchema is Dictionary<string, object> inputProps
-                    && inputProps.TryGetValue("properties", out var propsObj)
-                    && propsObj is Dictionary<string, object> props)
+                // inputSchema is an anonymous type with .properties and .required fields
+                try
                 {
-                    foreach (var kvp in props)
+                    var schemaProps = (Dictionary<string, object>)tool.inputSchema.properties;
+                    foreach (var kvp in schemaProps)
                     {
                         var propDef = (dynamic)kvp.Value;
                         var openApiProp = new Dictionary<string, object>
                         {
-                            ["type"] = propDef.type ?? "string",
-                            ["description"] = propDef.description ?? ""
+                            ["type"] = (string?)propDef.type ?? "string",
+                            ["description"] = (string?)propDef.description ?? ""
                         };
                         propDict[kvp.Key] = openApiProp;
                     }
                 }
+                catch { /* no properties */ }
 
-                if (inputSchema is Dictionary<string, object> inputReq
-                    && inputReq.TryGetValue("required", out var reqObj)
-                    && reqObj is string[] reqArr)
+                try
                 {
+                    var reqArr = (string[])tool.inputSchema.required;
                     requiredList = reqArr.ToList();
                 }
+                catch { /* no required */ }
 
                 var requestSchema = new
                 {

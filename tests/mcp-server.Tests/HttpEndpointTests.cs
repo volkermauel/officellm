@@ -177,6 +177,48 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task OpenApi_ToolEndpointsHaveParameterSchemas()
+    {
+        var response = await _client.GetAsync("/openapi.json");
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var paths = body.GetProperty("paths");
+
+        // Verify powerpoint_get_deck_outline has instanceId in its schema
+        var deckOutline = paths.GetProperty("/api/powerpoint_get_deck_outline");
+        var deckSchema = deckOutline.GetProperty("post").GetProperty("requestBody")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        var deckProps = deckSchema.GetProperty("properties");
+        Assert.True(deckProps.TryGetProperty("instanceId", out var instanceIdProp),
+            "powerpoint_get_deck_outline should have instanceId in properties");
+        Assert.Equal("string", instanceIdProp.GetProperty("type").GetString());
+
+        // Verify required includes instanceId
+        var deckRequired = deckSchema.GetProperty("required");
+        Assert.Contains("instanceId", deckRequired.EnumerateArray().Select(r => r.GetString()));
+
+        // Verify powerpoint_get_slide has instanceId AND slideIndex
+        var getSlide = paths.GetProperty("/api/powerpoint_get_slide");
+        var slideSchema = getSlide.GetProperty("post").GetProperty("requestBody")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        var slideProps = slideSchema.GetProperty("properties");
+        Assert.True(slideProps.TryGetProperty("slideIndex", out var slideIdxProp),
+            "powerpoint_get_slide should have slideIndex in properties");
+        Assert.Equal("integer", slideIdxProp.GetProperty("type").GetString());
+
+        var slideRequired = slideSchema.GetProperty("required");
+        var requiredList = slideRequired.EnumerateArray().Select(r => r.GetString()).ToList();
+        Assert.Contains("instanceId", requiredList);
+        Assert.Contains("slideIndex", requiredList);
+
+        // Verify office_get_active_apps has NO properties (empty schema)
+        var getApps = paths.GetProperty("/api/office_get_active_apps");
+        var appsSchema = getApps.GetProperty("post").GetProperty("requestBody")
+            .GetProperty("content").GetProperty("application/json").GetProperty("schema");
+        Assert.Equal(JsonValueKind.Object, appsSchema.GetProperty("properties").ValueKind);
+        Assert.Equal(0, appsSchema.GetProperty("properties").EnumerateObject().Count());
+    }
+
+    [Fact]
     public async Task OpenApi_SpecHasServerUrl()
     {
         var response = await _client.GetAsync("/openapi.json");
