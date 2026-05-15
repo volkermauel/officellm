@@ -15,7 +15,11 @@ const manifestTemplate = fs.readFileSync(manifestTemplatePath, "utf-8");
 
 // Dynamic manifest endpoint - MUST be before static files middleware
 app.get("/manifest.xml", (req, res) => {
-	const scheme = req.protocol; // 'http' or 'https'
+	// Explicitly check X-Forwarded-Proto for HTTPS behind Traefik
+	let scheme = req.protocol;
+	if (req.get("X-Forwarded-Proto")) {
+		scheme = req.get("X-Forwarded-Proto").split(",")[0].trim();
+	}
 	const host = req.get("Host"); // 'localhost:3000' or 'officellm.apps.rp.alliance.co.uk'
 	const baseUrl = `${scheme}://${host}`;
 
