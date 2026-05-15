@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: office-llm-harness-config
+  labels:
+    app: office-llm-harness
+data:
+  # Bind address — set to "0.0.0.0" for container/K8s deployment
+  MCP_HOST: "0.0.0.0"
+  # HTTP port — change if your cluster ingress expects a different port
+  MCP_PORT: "3000"

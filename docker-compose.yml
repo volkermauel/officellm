@@ -1,0 +1,20 @@
+# ============================================================
+# Docker Compose for local development (static file server)
+# The MCP server runs locally on each user's PC, not in Docker.
+# ============================================================
+
+services:
+  static-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: office-llm-harness-static
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

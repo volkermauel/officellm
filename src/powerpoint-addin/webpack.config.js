@@ -33,11 +33,15 @@ module.exports = {
 					from: "manifest.xml",
 					to: "../manifest.xml",
 				},
+				{
+					from: "assets/**/*",
+					to: "assets/[name][ext]",
+				},
 			],
 		}),
 	],
 	devServer: {
-		port: 3000,
+		port: 8080,
 		host: "127.0.0.1",
 		hot: true,
 		// Office Add-ins need HTTPS in production; localhost HTTP works for dev

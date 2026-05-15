@@ -1,0 +1,76 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: office-llm-harness
+  labels:
+    app: office-llm-harness
+  annotations:
+    # Internal-only ingress — not exposed to the public internet
+    kubernetes.io/ingress.class: "internal"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  tls:
+    - hosts:
+        - YOUR_HOST.example.internal
+      secretName: office-llm-harness-tls
+  rules:
+    - host: YOUR_HOST.example.internal
+      http:
+        paths:
+          # MCP server endpoints
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: office-llm-harness
+                port:
+                  number: 3000
+          # REST API bridge
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: office-llm-harness
+                port:
+                  number: 3000
+          # Instance management
+          - path: /instances
+            pathType: Prefix
+            backend:
+              service:
+                name: office-llm-harness
+                port:
+                  number: 3000
+          # Health check
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: office-llm-harness
+                port:
+                  number: 3000
+          # OpenAPI spec
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: office-llm-harness
+                port:
+                  number: 3000
+          # Swagger UI docs
+          - path: /docs
+            pathType: Exact
+            backend:
+              service:
+                name: office-llm-harness
+                port:
+                  number: 3000
+          # Static files (PowerPoint add-in task pane)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: office-llm-harness
+                port:
+                  number: 3000

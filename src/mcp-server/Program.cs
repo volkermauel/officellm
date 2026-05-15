@@ -3,12 +3,36 @@ using System.Text.Json;
 using OfficeMcpServer;
 using OfficeMcpServer.Tools;
 
-// --- MCP configuration ---
-var mcpPort = args.FirstOrDefault(a => !a.StartsWith("--")) is string portArg && int.TryParse(portArg, out var p) ? p : 3000;
+// --- MCP configuration (user-provided via env vars or CLI args) ---
+int mcpPort = 3000;
+string mcpHost = "127.0.0.1"; // Default: localhost only for local dev
 
-Console.WriteLine($"Starting Office LLM Harness MCP Server on port {mcpPort}...");
+// Parse CLI args first (highest priority)
+var cliArgs = args.Where(a => !a.StartsWith("--")).ToList();
+if (cliArgs.Count > 0 && int.TryParse(cliArgs[0], out var cliPort))
+{
+    mcpPort = cliPort;
+}
+else if (cliArgs.Count > 1 && int.TryParse(cliArgs[1], out var cliPort2))
+{
+    mcpPort = cliPort2;
+}
 
-var app = AppBuilder.Create(args, mcpPort);
+// Override from environment variables (Docker/K8s deployment)
+if (int.TryParse(Environment.GetEnvironmentVariable("PORT") ?? Environment.GetEnvironmentVariable("MCP_PORT"), out var envPort))
+{
+    mcpPort = envPort;
+}
+
+if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HOST")) ||
+    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MCP_HOST")))
+{
+    mcpHost = Environment.GetEnvironmentVariable("HOST") ?? Environment.GetEnvironmentVariable("MCP_HOST")!;
+}
+
+Console.WriteLine($"Starting Office LLM Harness MCP Server on {mcpHost}:{mcpPort}...");
+
+var app = AppBuilder.Create(mcpHost, mcpPort);
 
 // ============================================================
 // STDIO JSON-RPC SERVER (for MCPo)

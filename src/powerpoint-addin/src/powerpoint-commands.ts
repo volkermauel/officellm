@@ -109,7 +109,9 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 					slides: slideList,
 				});
 			} catch (error) {
-				resolve({ error: error instanceof Error ? error.message : String(error) });
+				resolve({
+					error: error instanceof Error ? error.message : String(error),
+				});
 			}
 		});
 	});
@@ -187,7 +189,9 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 					isHidden: false,
 				});
 			} catch (error) {
-				resolve({ error: error instanceof Error ? error.message : String(error) });
+				resolve({
+					error: error instanceof Error ? error.message : String(error),
+				});
 			}
 		});
 	});

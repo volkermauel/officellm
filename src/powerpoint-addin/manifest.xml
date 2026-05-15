@@ -13,11 +13,11 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Office LLM Harness"/>
   <Description DefaultValue="Connects PowerPoint to Open WebUI via a local MCP server for LLM-assisted workflows."/>
-  <IconUrl DefaultValue="http://localhost:3000/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="http://localhost:3000/assets/icon-64.png"/>
+  <IconUrl DefaultValue="http://localhost:8080/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="http://localhost:8080/assets/icon-64.png"/>
 
   <!-- Support -->
-  <SupportUrl DefaultValue="http://localhost:3000/support.html"/>
+  <SupportUrl DefaultValue="http://localhost:8080/"/>
 
   <!-- Domains (needed for localhost dev) -->
   <AppDomains>
@@ -30,7 +30,7 @@
     <Host name="Presentation"/>
   </Hosts>
   <DefaultSettings>
-    <SourceLocation DefaultValue="http://localhost:3000/taskpane.html"/>
+    <SourceLocation DefaultValue="http://localhost:8080/index.html"/>
     <RequestedWidth>400</RequestedWidth>
   </DefaultSettings>
 

@@ -192,14 +192,21 @@ async function processPendingCommands(): Promise<void> {
 			const result = await processCommand(cmd.id, cmd.command, cmd.args);
 
 			// Check if confirmation is required
-			if (result && typeof result === "object" && "requiresConfirmation" in result) {
+			if (
+				result &&
+				typeof result === "object" &&
+				"requiresConfirmation" in result
+			) {
 				const confirmationData = result as {
 					requiresConfirmation: boolean;
 					confirmationToken?: string;
 					diffPreview?: unknown;
 					toolName?: string;
 				};
-				if (confirmationData.requiresConfirmation && confirmationData.confirmationToken) {
+				if (
+					confirmationData.requiresConfirmation &&
+					confirmationData.confirmationToken
+				) {
 					pendingConfirmation = {
 						commandId: cmd.id,
 						toolName: confirmationData.toolName || cmd.command,
@@ -255,18 +262,15 @@ async function approveChange(): Promise<void> {
 	if (!pendingConfirmation || !instanceId) return;
 
 	try {
-		await fetch(
-			`http://127.0.0.1:3000/instances/${instanceId}/confirm`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					commandId: pendingConfirmation.commandId,
-					confirmationToken: pendingConfirmation.confirmationToken,
-					approved: true,
-				}),
-			},
-		);
+		await fetch(`http://127.0.0.1:3000/instances/${instanceId}/confirm`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				commandId: pendingConfirmation.commandId,
+				confirmationToken: pendingConfirmation.confirmationToken,
+				approved: true,
+			}),
+		});
 		addLogEntry(`Change approved: ${pendingConfirmation.toolName}`);
 	} catch (error) {
 		addLogEntry(
@@ -283,18 +287,15 @@ async function rejectChange(): Promise<void> {
 	if (!pendingConfirmation || !instanceId) return;
 
 	try {
-		await fetch(
-			`http://127.0.0.1:3000/instances/${instanceId}/confirm`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					commandId: pendingConfirmation.commandId,
-					confirmationToken: pendingConfirmation.confirmationToken,
-					approved: false,
-				}),
-			},
-		);
+		await fetch(`http://127.0.0.1:3000/instances/${instanceId}/confirm`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				commandId: pendingConfirmation.commandId,
+				confirmationToken: pendingConfirmation.confirmationToken,
+				approved: false,
+			}),
+		});
 		addLogEntry(`Change rejected: ${pendingConfirmation.toolName}`);
 	} catch (error) {
 		addLogEntry(

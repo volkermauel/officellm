@@ -15,17 +15,17 @@ public static class AppBuilder
 {
     /// <summary>
     /// Creates a pre-configured WebApplication. The caller must call app.Run() to start it.
-    /// If mcpPort is null, the server uses ASP.NET's default URL mechanism (useful for tests).
+    /// For testing, pass mcpHost=null and mcpPort=null to use ASP.NET's default URL mechanism.
     /// </summary>
-    public static WebApplication Create(string[]? args = null, int? mcpPort = null)
+    public static WebApplication Create(string? mcpHost = "127.0.0.1", int? mcpPort = null)
     {
-        args ??= [];
+        // args are now parsed in Program.cs before calling Create()
 
-        var builder = WebApplication.CreateBuilder(args);
+        var builder = WebApplication.CreateBuilder();
 
-        if (mcpPort.HasValue)
+        if (mcpPort.HasValue && !string.IsNullOrEmpty(mcpHost))
         {
-            builder.WebHost.UseUrls($"http://127.0.0.1:{mcpPort.Value}");
+            builder.WebHost.UseUrls($"http://{mcpHost}:{mcpPort.Value}");
         }
 
         builder.Services.AddCors(options =>

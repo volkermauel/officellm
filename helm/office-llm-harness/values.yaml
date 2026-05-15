@@ -1,0 +1,40 @@
+# ============================================================
+# Office LLM Harness — Helm Chart Values
+# ============================================================
+
+image:
+  repository: ghcr.io/YOUR_ORG/office-llm-harness-static
+  tag: latest
+  pullPolicy: IfNotPresent
+  # ^^^ Replace YOUR_ORG with your GitHub org/user name
+
+# Replica count — stateless, scale as needed
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: YOUR_HOST.example.internal
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: office-llm-harness-tls
+      hosts:
+        - YOUR_HOST.example.internal
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
