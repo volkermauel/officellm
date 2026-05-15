@@ -25,13 +25,17 @@ let pendingConfirmation: {
 } | null = null;
 
 // --- Initialization ---
+let isInitialized = false;
 
 Office.onReady((info) => {
 	console.log(`Office ready: ${info.host}`);
 	updateOfficeStatus(true);
 
-	// Register with MCP server
-	initWithMcp();
+	// Register with MCP server (only once)
+	if (!isInitialized) {
+		isInitialized = true;
+		initWithMcp();
+	}
 });
 
 async function initWithMcp(): Promise<void> {
