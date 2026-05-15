@@ -17,10 +17,12 @@ const manifestTemplate = fs.readFileSync(manifestTemplatePath, "utf-8");
 app.get("/manifest.xml", (req, res) => {
 	// Explicitly check X-Forwarded-Proto for HTTPS behind Traefik
 	let scheme = req.protocol;
-	if (req.get("X-Forwarded-Proto")) {
-		scheme = req.get("X-Forwarded-Proto").split(",")[0].trim();
+	const xfp = req.get("X-Forwarded-Proto");
+	if (xfp) {
+		scheme = xfp.split(",")[0].trim();
 	}
 	const host = req.get("Host"); // 'localhost:3000' or 'officellm.apps.rp.alliance.co.uk'
+	console.log(`[manifest] scheme=${scheme}, xfp=${xfp}, host=${host}`);
 	const baseUrl = `${scheme}://${host}`;
 
 	// Replace placeholders in manifest template
