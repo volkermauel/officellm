@@ -25,7 +25,7 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY server/package.json ./
-RUN npm ci --production
+RUN npm install --production
 
 # Copy built static files from builder
 COPY --from=addin-builder /build/addin/dist ./dist
