@@ -39,8 +39,8 @@ public static class McpToolEngine
                 properties = new Dictionary<string, object>
                 {
                     ["instanceId"] = new { type = "string", description = "Target instance ID (e.g. 'powerpoint_1'). Omit to use the most recently registered instance." },
-                    ["includeSpeakerNotes"] = new { type = "boolean", description = "Include speaker notes in the outline", default_value = false },
-                    ["includeHiddenSlides"] = new { type = "boolean", description = "Include hidden slides in the outline", default_value = false }
+                    ["includeSpeakerNotes"] = new { type = "boolean", description = "Include speaker notes in the outline", @default = false },
+                    ["includeHiddenSlides"] = new { type = "boolean", description = "Include hidden slides in the outline", @default = false }
                 },
                 required = Array.Empty<string>()
             }

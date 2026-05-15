@@ -56,48 +56,39 @@ export async function processCommand(
 // --- Command Handlers ---
 
 async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const PowerPoint: any = (window as any).PowerPoint;
+	if (!PowerPoint || typeof PowerPoint.Run !== "function") {
+		return {
+			documentName: "(unknown)",
+			totalSlides: 0,
+			slides: [],
+			error: "PowerPoint.Run() not available",
+		};
+	}
+
 	return new Promise((resolve) => {
-		// Config params: includeSpeakerNotes, includeHiddenSlides (used in full implementation)
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const OfficeAny: any = (window as any).Office;
-		if (!OfficeAny || typeof OfficeAny.context === "undefined") {
-			resolve({ error: "PowerPoint context not available" });
-			return;
-		}
-
-		// Use PowerPoint.Run() to access the presentation API
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const PowerPoint: any = (window as any).PowerPoint;
-		if (!PowerPoint || typeof PowerPoint.Run !== "function") {
-			resolve({
-				documentName: "(unknown)",
-				totalSlides: 0,
-				slides: [],
-				message: "PowerPoint.Run() not available in this environment",
-			});
-			return;
-		}
-
 		PowerPoint.Run(async (context: any) => {
 			try {
 				const presentation = context.presentation;
 				const slides = presentation.slides;
-				context.load(slides, "notCoveredByParallelization");
+
+				// Load the slides collection
+				context.load(slides, ["items"]);
 				await context.sync();
 
+				const totalSlides = slides.items.length;
 				const slideList: Array<{
 					index: number;
 					title: string;
-					hasSpeakerNotes: boolean;
 				}> = [];
 
-				for (let i = 0; i < slides.items.length; i++) {
+				for (let i = 0; i < totalSlides; i++) {
 					const slide = slides.items[i];
-					context.load(slide, "name,slideLayoutItem");
+					context.load(slide, ["id", "name"]);
 					slideList.push({
 						index: i,
 						title: slide.name || `Slide ${i + 1}`,
-						hasSpeakerNotes: false,
 					});
 				}
 
@@ -105,12 +96,12 @@ async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 
 				resolve({
 					documentName: presentation.name || "Untitled",
-					totalSlides: slideList.length,
+					totalSlides,
 					slides: slideList,
 				});
 			} catch (error) {
 				resolve({
-					error: error instanceof Error ? error.message : String(error),
+					error: `PowerPoint.Run failed: ${error instanceof Error ? error.message : String(error)}`,
 				});
 			}
 		});
@@ -121,25 +112,25 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 	const config = args as { slideIndex?: number };
 	const slideIndex = config.slideIndex ?? 0;
 
-	return new Promise((resolve) => {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const PowerPoint: any = (window as any).PowerPoint;
-		if (!PowerPoint || typeof PowerPoint.Run !== "function") {
-			resolve({
-				slideIndex,
-				title: "(not available)",
-				shapes: [],
-				speakerNotes: "",
-				isHidden: false,
-			});
-			return;
-		}
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const PowerPoint: any = (window as any).PowerPoint;
+	if (!PowerPoint || typeof PowerPoint.Run !== "function") {
+		return {
+			slideIndex,
+			title: "(not available)",
+			shapes: [],
+			speakerNotes: "",
+			isHidden: false,
+			error: "PowerPoint.Run() not available",
+		};
+	}
 
+	return new Promise((resolve) => {
 		PowerPoint.Run(async (context: any) => {
 			try {
 				const presentation = context.presentation;
 				const slides = presentation.slides;
-				context.load(slides);
+				context.load(slides, ["items"]);
 				await context.sync();
 
 				if (slideIndex < 0 || slideIndex >= slides.items.length) {
@@ -149,7 +140,7 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 
 				const slide = slides.items[slideIndex];
 				const shapes = slide.shapes;
-				context.load(shapes, "notCoveredByParallelization");
+				context.load(shapes, ["items"]);
 				await context.sync();
 
 				const shapeList: Array<{
@@ -160,26 +151,16 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 				}> = [];
 
 				for (const shape of shapes.items) {
-					context.load(shape, "name,shapeType");
-					if (shape.hasTextFrame()) {
-						const textFrame = shape.getTextFrame();
-						context.load(textFrame, "textRange");
-						await context.sync();
-						shapeList.push({
-							id: shape.id || "",
-							name: shape.name || "",
-							shapeType: shape.shapeType || "unknown",
-							text: textFrame.textRange.text || "",
-						});
-					} else {
-						shapeList.push({
-							id: shape.id || "",
-							name: shape.name || "",
-							shapeType: shape.shapeType || "unknown",
-							text: "",
-						});
-					}
+					context.load(shape, ["id", "name", "shapeType"]);
+					shapeList.push({
+						id: shape.id || "",
+						name: shape.name || "",
+						shapeType: shape.shapeType || "unknown",
+						text: "",
+					});
 				}
+
+				await context.sync();
 
 				resolve({
 					slideIndex,
@@ -190,7 +171,7 @@ async function handleGetSlide(args: unknown): Promise<unknown> {
 				});
 			} catch (error) {
 				resolve({
-					error: error instanceof Error ? error.message : String(error),
+					error: `PowerPoint.Run failed: ${error instanceof Error ? error.message : String(error)}`,
 				});
 			}
 		});

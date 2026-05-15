@@ -269,8 +269,8 @@ public static class AppBuilder
                     case "tools/call":
                         var toolName = message.GetProperty("params").GetProperty("name").GetString() ?? "";
                         System.Text.Json.JsonElement? toolArgs = null;
-                        if (message.GetProperty("params").TryGetProperty("input", out var input))
-                            toolArgs = input;
+                        if (message.GetProperty("params").TryGetProperty("arguments", out var arguments))
+                            toolArgs = arguments;
                         var result = await McpToolEngine.ExecuteTool(toolName, toolArgs);
                         return Results.Json(new
                         { jsonrpc = "2.0", id = message.GetProperty("id"), result },
