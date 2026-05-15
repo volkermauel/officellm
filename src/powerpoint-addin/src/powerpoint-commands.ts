@@ -52,8 +52,7 @@ export async function processCommand(
 // --- Command Handlers ---
 
 async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
-
-	// In production, this would use PowerPoint JS API:
+	// Stub: In a real implementation, this would use PowerPoint JS API:
 	// await PowerPoint.run(async (context) => {
 	//   const slides = context.presentation.slides;
 	//   slides.load("id,position,title");
