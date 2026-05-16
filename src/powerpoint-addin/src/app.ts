@@ -13,11 +13,15 @@ import {
 } from "./communication";
 import { processCommand as processPptCommand } from "./powerpoint-commands";
 import { processCommand as processWordCommand } from "./word-commands";
+import { processCommand as processExcelCommand } from "./excel-commands";
+import { processCommand as processOutlookCommand } from "./outlook-commands";
 
 // --- Host-aware command dispatch ---
 const HOST_DISPATCH: Record<string, typeof processPptCommand> = {
 	powerpoint_: processPptCommand,
 	word_: processWordCommand,
+	excel_: processExcelCommand,
+	outlook_: processOutlookCommand,
 };
 
 function processCommand(

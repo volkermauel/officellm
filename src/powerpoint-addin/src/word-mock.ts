@@ -16,7 +16,12 @@ export interface MockDocumentData {
 	selectedText?: string;
 	comments: Array<{ text: string; paragraphIndex?: number }>;
 	changeTrackingMode: "Off" | "TrackAll" | "TrackMineOnly";
-	changeLog: Array<{ type: string; paragraphIndex: number; oldText?: string; newText?: string }>;
+	changeLog: Array<{
+		type: string;
+		paragraphIndex: number;
+		oldText?: string;
+		newText?: string;
+	}>;
 }
 
 export class WordMock {
@@ -347,7 +352,12 @@ class MockParagraph {
 			(oldText: string, newText: string) => {
 				const original = this._para.text;
 				this._para.text = this._para.text.replace(oldText, newText);
-				this._data.changeLog.push({ type: "replace", paragraphIndex: this._index, oldText: original, newText: this._para.text });
+				this._data.changeLog.push({
+					type: "replace",
+					paragraphIndex: this._index,
+					oldText: original,
+					newText: this._para.text,
+				});
 			}, // propagate replace to paragraph data + log change
 		);
 	}

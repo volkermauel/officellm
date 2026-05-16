@@ -10,13 +10,12 @@ public class McpToolEngineTests
 		McpToolEngine.ResetForTesting();
 	}
 
-    [Fact]
-    public void GetToolDefinitions_Returns29Tools()
+    public void GetToolDefinitions_Returns39Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(29, tools.Length);
+        Assert.Equal(39, tools.Length);
     }
 
     [Fact]
@@ -67,6 +66,22 @@ public class McpToolEngineTests
         Assert.Contains("word_insert_text", names);
         Assert.Contains("word_add_comment", names);
         Assert.Contains("word_delete_paragraph", names);
+        Assert.Contains("word_get_tracked_changes", names);
+        Assert.Contains("word_accept_all_changes", names);
+        Assert.Contains("word_reject_all_changes", names);
+
+        Assert.Contains("excel_get_workbook_map", names);
+        Assert.Contains("excel_read_range", names);
+        Assert.Contains("excel_write_range", names);
+        Assert.Contains("excel_write_formula", names);
+        Assert.Contains("excel_create_table", names);
+
+        // Outlook tools
+        Assert.Contains("outlook_get_current_item", names);
+        Assert.Contains("outlook_summarize_thread", names);
+        Assert.Contains("outlook_draft_reply", names);
+        Assert.Contains("outlook_apply_category", names);
+        Assert.Contains("outlook_send_message", names);
     }
 
     [Fact]

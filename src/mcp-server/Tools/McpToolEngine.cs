@@ -502,6 +502,179 @@ public static class McpToolEngine
                 },
                 required = new[] { "instanceId" }
             }
+        },
+
+        // ── Excel Read tools ──────────────────────────────────────
+        new
+        {
+            name = "excel_get_workbook_map",
+            description = "Returns the workbook structure: sheet names, used range dimensions, tables (name, range, sheet), and named ranges. Use office_get_active_apps first to find the right instanceId.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'excel_1')." },
+                    ["includeTables"] = new { type = "boolean", description = "Include table definitions in the response. Default: true", @default = true },
+                    ["includeNamedRanges"] = new { type = "boolean", description = "Include named ranges in the response. Default: true", @default = true }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "excel_read_range",
+            description = "Reads cell values, formulas, and optional number formats from a bounded range. Specify sheet name and A1-style address (e.g. 'B2:G24'). Returns a 2D grid with row/column indices.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["sheetName"] = new { type = "string", description = "Name of the worksheet to read from" },
+                    ["address"] = new { type = "string", description = "A1-style range address (e.g. 'A1:D10') or single cell (e.g. 'B2')" },
+                    ["includeFormulas"] = new { type = "boolean", description = "Include formula strings for formula cells. Default: true", @default = true },
+                    ["includeNumberFormats"] = new { type = "boolean", description = "Include number format strings. Default: false", @default = false }
+                },
+                required = new[] { "instanceId", "sheetName", "address" }
+            }
+        },
+
+        // ── Excel Write tools ─────────────────────────────────────
+        new
+        {
+            name = "excel_write_range",
+            description = "Writes values to a bounded range on a worksheet. Applies directly — users should create backups. Values is a 2D array (rows of columns). The range dimensions must match the data dimensions.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["sheetName"] = new { type = "string", description = "Name of the worksheet to write to" },
+                    ["address"] = new { type = "string", description = "A1-style range address to write to (e.g. 'A1:C3')" },
+                    ["values"] = new { type = "array", description = "2D array of values (rows of columns). Numbers, strings, or null for empty.", items = new { type = "array", items = new { type = "string" } } }
+                },
+                required = new[] { "instanceId", "sheetName", "address", "values" }
+            }
+        },
+        new
+        {
+            name = "excel_write_formula",
+            description = "Writes a formula to a cell or range on a worksheet. Validates formula syntax (must start with '='). Applies directly — users should create backups.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["sheetName"] = new { type = "string", description = "Name of the worksheet" },
+                    ["address"] = new { type = "string", description = "A1-style cell or range address for the formula (e.g. 'D2' or 'D2:D24')" },
+                    ["formula"] = new { type = "string", description = "Excel formula string (must start with '='). e.g. '=SUM(B2:B24)'" }
+                },
+                required = new[] { "instanceId", "sheetName", "address", "formula" }
+            }
+        },
+        new
+        {
+            name = "excel_create_table",
+            description = "Creates a formatted Excel table (ListObject) from a specified range. Returns the table name and range. Applies directly.", 
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["sheetName"] = new { type = "string", description = "Name of the worksheet containing the data" },
+                    ["address"] = new { type = "string", description = "A1-style range address including headers (e.g. 'A1:D25')" },
+                    ["tableName"] = new { type = "string", description = "Optional name for the table. Default: auto-generated by Excel." },
+                    ["hasHeaders"] = new { type = "boolean", description = "First row contains headers. Default: true", @default = true }
+                },
+                required = new[] { "instanceId", "sheetName", "address" }
+            }
+        },
+
+        // ── Outlook Read tools ──────────────────────────────────────
+        new
+        {
+            name = "outlook_get_current_item",
+            description = "Returns metadata (sender, recipients, subject, received date) and bounded body text for the currently selected Outlook item. Includes attachment metadata (name, size, type) but not file contents.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps (e.g. 'outlook_1')." },
+                    ["includeBody"] = new { type = "boolean", description = "Include the email body text. Default: true", @default = true },
+                    ["bodyFormat"] = new { type = "string", description = "Body format: 'text' or 'html'. Default: 'text'", @default = "text" }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "outlook_summarize_thread",
+            description = "Returns a structured summary of the selected email thread with timeline, key decisions, action items, and unresolved questions. Processes up to 50 messages by default.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["maxMessages"] = new { type = "integer", description = "Maximum messages to process. Default: 50", @default = 50 }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+
+        // ── Outlook Write tools (never auto-send) ──────────────────
+        new
+        {
+            name = "outlook_draft_reply",
+            description = "Creates a draft reply in Outlook's Drafts folder for the selected email. The draft is NEVER sent automatically — the user must review and send from Outlook. Supports tone control and key points.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["tone"] = new { type = "string", description = "Reply tone: 'concise', 'formal', 'friendly', or 'technical'. Default: 'concise'", @default = "concise", @enum = new[] { "concise", "formal", "friendly", "technical" } },
+                    ["keyPoints"] = new { type = "array", description = "Key points to address in the reply", items = new { type = "string" } },
+                    ["includeThreadSummary"] = new { type = "boolean", description = "Include a thread summary in the draft. Default: false", @default = false }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "outlook_apply_category",
+            description = "Applies an Outlook category (color-coded label) to the currently selected email(s). Returns available categories if the requested one doesn't exist.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["categoryName"] = new { type = "string", description = "Name of the Outlook category to apply" }
+                },
+                required = new[] { "instanceId", "categoryName" }
+            }
+        },
+        new
+        {
+            name = "outlook_send_message",
+            description = "Sends a drafted message. REQUIRES explicit user confirmation via the Outlook task pane — a confirmation token must be provided. NEVER auto-sends. Subject to policy filters.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." },
+                    ["confirmationToken"] = new { type = "string", description = "REQUIRED. Confirmation token obtained from explicit user approval in the Outlook task pane." },
+                    ["messageId"] = new { type = "string", description = "Optional. ID of the draft message to send. If omitted, sends the currently open draft." }
+                },
+                required = new[] { "instanceId", "confirmationToken" }
+            }
         }
     ];
 
@@ -542,6 +715,20 @@ public static class McpToolEngine
         "word_get_tracked_changes",
         "word_accept_all_changes",
         "word_reject_all_changes",
+
+        // Excel
+        "excel_get_workbook_map",
+        "excel_read_range",
+        "excel_write_range",
+        "excel_write_formula",
+        "excel_create_table",
+
+        // Outlook
+        "outlook_get_current_item",
+        "outlook_summarize_thread",
+        "outlook_draft_reply",
+        "outlook_apply_category",
+        "outlook_send_message",
     };
 
     /// <summary>

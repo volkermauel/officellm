@@ -337,7 +337,13 @@ async function handleInsertText(args: unknown): Promise<unknown> {
 		paragraph.insertParagraph(text, location);
 		await ctx.sync();
 
-		return { text, insertLocation, paragraphIndex, inserted: true, tracked: true };
+		return {
+			text,
+			insertLocation,
+			paragraphIndex,
+			inserted: true,
+			tracked: true,
+		};
 	});
 }
 

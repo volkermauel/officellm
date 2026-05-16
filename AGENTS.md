@@ -132,43 +132,56 @@ When working with the Word JavaScript API in the add-in:
 - **`getTextFrameOrNullObject` equivalent** — Word has no direct equivalent. Use `range.getHtml()` or `range.getText()` to read content. For null-safe patterns, check `range.isNullObject` after `context.sync()`.
 - **Range-based operations** — Word operates on `Range` objects. Get the current selection via `context.document.getSelection()`, then manipulate it as a range.
 
-### Tool Inventory (29 tools)
+### Tool Inventory (39 tools)
 
-| # | Tool Name | Host | Category |
-|---|-----------|------|----------|
-| 1 | `powerpoint_get_slides` | PowerPoint | Read |
-| 2 | `powerpoint_get_slide` | PowerPoint | Read |
-| 3 | `powerpoint_get_shapes` | PowerPoint | Read |
-| 4 | `powerpoint_get_shape` | PowerPoint | Read |
-| 5 | `powerpoint_get_shape_text` | PowerPoint | Read |
-| 6 | `powerpoint_set_shape_text` | PowerPoint | Write |
-| 7 | `powerpoint_add_shape` | PowerPoint | Write |
-| 8 | `powerpoint_delete_shape` | PowerPoint | Write |
-| 9 | `powerpoint_set_shape_properties` | PowerPoint | Write |
-| 10 | `powerpoint_add_slide` | PowerPoint | Write |
-| 11 | `powerpoint_delete_slide` | PowerPoint | Write |
-| 12 | `powerpoint_move_slide` | PowerPoint | Write |
-| 13 | `powerpoint_duplicate_slide` | PowerPoint | Write |
-| 14 | `powerpoint_set_slide_layout` | PowerPoint | Write |
-| 15 | `powerpoint_get_notes` | PowerPoint | Read |
-| 16 | `powerpoint_set_notes` | PowerPoint | Write |
-| 17 | `powerpoint_get_selection` | PowerPoint | Read |
-| 18 | `powerpoint_set_selection` | PowerPoint | Write |
-| 19 | `office_get_active_app` | Shared | Read |
-| 20 | `word_get_outline` | Word | Read |
-| 21 | `word_get_paragraphs` | Word | Read |
-| 22 | `word_replace_text` | Word | Write (tracked) |
-| 23 | `word_insert_after_heading` | Word | Write (tracked) |
-| 24 | `word_add_review_comments` | Word | Write |
-| 25 | `word_get_selection` | Word | Read |
-| 26 | `word_get_tracked_changes` | Word | Read |
-| 27 | `word_accept_all_changes` | Word | Write |
-| 28 | `word_reject_all_changes` | Word | Write |
-| 29 | `office_get_document_context` | Shared | Read |
+| #   | Tool Name                            | Host       | Category        |
+| --- | ------------------------------------ | ---------- | --------------- |
+| 1   | `office_get_active_apps`             | Shared     | Read            |
+| 2   | `powerpoint_get_deck_outline`        | PowerPoint | Read            |
+| 3   | `powerpoint_get_slide`               | PowerPoint | Read            |
+| 4   | `powerpoint_get_slide_image`         | PowerPoint | Read            |
+| 5   | `powerpoint_get_shape_image`         | PowerPoint | Read            |
+| 6   | `powerpoint_get_table`               | PowerPoint | Read            |
+| 7   | `powerpoint_get_selection`           | PowerPoint | Read            |
+| 8   | `powerpoint_get_speaker_notes`       | PowerPoint | Read            |
+| 9   | `powerpoint_update_shape_text`       | PowerPoint | Write           |
+| 10  | `powerpoint_update_shape_properties` | PowerPoint | Write           |
+| 11  | `powerpoint_update_speaker_notes`    | PowerPoint | Write           |
+| 12  | `powerpoint_add_textbox`             | PowerPoint | Write           |
+| 13  | `powerpoint_add_image`               | PowerPoint | Write           |
+| 14  | `powerpoint_add_table`               | PowerPoint | Write           |
+| 15  | `powerpoint_delete_shape`            | PowerPoint | Write           |
+| 16  | `powerpoint_add_slide`               | PowerPoint | Write           |
+| 17  | `powerpoint_delete_slide`            | PowerPoint | Write           |
+| 18  | `powerpoint_move_slide`              | PowerPoint | Write           |
+| 19  | `word_get_outline`                   | Word       | Read            |
+| 20  | `word_get_paragraphs`                | Word       | Read            |
+| 21  | `word_get_selection`                 | Word       | Read            |
+| 22  | `word_search`                        | Word       | Read            |
+| 23  | `word_replace_text`                  | Word       | Write (tracked) |
+| 24  | `word_insert_text`                   | Word       | Write (tracked) |
+| 25  | `word_add_comment`                   | Word       | Write           |
+| 26  | `word_delete_paragraph`              | Word       | Write (tracked) |
+| 27  | `word_get_tracked_changes`           | Word       | Read            |
+| 28  | `word_accept_all_changes`            | Word       | Write           |
+| 29  | `word_reject_all_changes`            | Word       | Write           |
+| 30  | `excel_get_workbook_map`             | Excel      | Read            |
+| 31  | `excel_read_range`                   | Excel      | Read            |
+| 32  | `excel_write_range`                  | Excel      | Write           |
+| 33  | `excel_write_formula`                | Excel      | Write           |
+| 34  | `excel_create_table`                 | Excel      | Write           |
+| 35  | `outlook_get_current_item`           | Outlook    | Read            |
+| 36  | `outlook_summarize_thread`           | Outlook    | Read            |
+| 37  | `outlook_draft_reply`                | Outlook    | Write (draft)   |
+| 38  | `outlook_apply_category`             | Outlook    | Write           |
+| 39  | `outlook_send_message`               | Outlook    | Write (gated)   |
 
 **Mutation modes by host**:
+
 - **Word**: Tracked changes (`changeTrackingMode: "TrackMineOnly"`) — user accepts/rejects via Word Review ribbon or tracked change tools. No confirmation gate needed.
 - **PowerPoint**: Direct write with undo group per `PowerPoint.run()` batch — no tracked changes API exists. Undo (Ctrl+Z) reverses the entire batch.
+- **Excel**: Direct write with native undo (Ctrl+Z). No tracked changes API. Formula validation rejects invalid syntax before writing.
+- **Outlook**: Drafts created in Drafts folder — NEVER auto-sent. `outlook_send_message` requires explicit confirmation token from Outlook task pane. Policy filters can block sends.
 
 ## Speckit Workflow
 
