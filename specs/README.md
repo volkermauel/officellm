@@ -42,6 +42,11 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 | 10  | [Excel Analysis](010-excel-analysis/)       | `010-excel-analysis`    | Sheet management, sort, filter, charts, conditional formatting, cell formatting, pivot tables                                |
 | 11  | [Word Structure](011-word-structure/)       | `011-word-structure`    | Tables CRUD, headers/footers, replace selection, images, styles, sections, lists                                             |
 | 12  | [Cross-Cutting](012-cross-cutting/)         | `012-cross-cutting`     | Unified document context, consistent error codes, document stats, batch operations                                           |
+| 13  | [Document Export](013-document-export/)     | `013-document-export`  | PDF/native export via getFileAsync, visual verification, document backup                                                     |
+| 14  | [Word Find & Replace](014-word-find-replace/) | `014-word-find-replace` | Regex/wildcard find & replace, scoped replacement, preview mode, tracked changes                                              |
+| 15  | [Change Log](015-change-log/)               | `015-change-log`        | Operation audit trail, undo operations, change summaries                                                                     |
+| 16  | [Excel Navigation](016-excel-navigation/)   | `016-excel-navigation`  | Freeze panes, named ranges (get/add), workbook navigation aids                                                               |
+| 17  | [Excel Validation](017-excel-validation/)   | `017-excel-validation`  | Data validation (dropdowns, number/date constraints, custom formulas), input messages, error alerts                           |
 
 ## Progression
 
@@ -113,6 +118,21 @@ The instance registration (`POST /instances/register`) includes the `appName` fi
 | `word_get_headers_footers`     | Word    | 11    | Read header/footer content               |
 | `word_insert_image`            | Word    | 11    | Insert inline image                      |
 | `office_get_document_context`  | **All** | 12    | Unified context for any host             |
+
+### Planned (Phases 13–17)
+
+| Tool                           | Host    | Phase | Scope                                            |
+| ------------------------------ | ------- | ----- | ------------------------------------------------ |
+| `office_export_document`       | **All** | 13    | Export as PDF or native (PPTX/DOCX/XLSX)         |
+| `word_find_replace`            | Word    | 14    | Regex/wildcard find & replace with tracked changes|
+| `word_find_all`                | Word    | 14    | Preview matches without replacing                |
+| `office_get_change_log`        | **All** | 15    | Query audit trail for all operations             |
+| `office_undo_last`             | **All** | 15    | Undo last operation via Ctrl+Z                   |
+| `excel_freeze_panes`           | Excel   | 16    | Freeze/unfreeze rows and columns                 |
+| `excel_get_named_ranges`       | Excel   | 16    | List all named ranges                            |
+| `excel_add_named_range`        | Excel   | 16    | Create or update a named range                   |
+| `excel_add_data_validation`    | Excel   | 17    | Dropdown, number, date, custom validation        |
+| `excel_remove_data_validation` | Excel   | 17    | Clear validation from a range                    |
 
 ## Workflow
 

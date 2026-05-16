@@ -362,19 +362,25 @@ async function handleSendMessage(args: unknown): Promise<unknown> {
 	};
 }
 
-
 // ── Extended Outlook tools ──────────────────────────────────────
 
 function getMailbox(): any {
 	const Office: any = (globalThis as any).Office;
-	if (!Office?.context?.mailbox) throw new Error("Office.context.mailbox not available");
+	if (!Office?.context?.mailbox)
+		throw new Error("Office.context.mailbox not available");
 	return Office.context.mailbox;
 }
 
-function callbackToPromise(fn: (cb: (result: any) => void) => void): Promise<any> {
+function callbackToPromise(
+	fn: (cb: (result: any) => void) => void,
+): Promise<any> {
 	return new Promise((resolve, reject) => {
 		fn((result: any) => {
-			if (result.status === "succeeded" || result.status === Office.AsyncResultStatus?.Succeeded) resolve(result.value);
+			if (
+				result.status === "succeeded" ||
+				result.status === Office.AsyncResultStatus?.Succeeded
+			)
+				resolve(result.value);
 			else reject(new Error(result.error?.message || "Async operation failed"));
 		});
 	});
@@ -393,25 +399,39 @@ async function handleGetUserProfile(_args: unknown): Promise<unknown> {
 async function handleGetMasterCategories(_args: unknown): Promise<unknown> {
 	const Office: any = (globalThis as any).Office;
 	const mb = getMailbox();
-	const categories = await callbackToPromise((cb) => mb.masterCategories.getAsync(cb));
-	return { categories: (categories || []).map((c: any) => ({ displayName: c.displayName, color: c.color })) };
+	const categories = await callbackToPromise((cb) =>
+		mb.masterCategories.getAsync(cb),
+	);
+	return {
+		categories: (categories || []).map((c: any) => ({
+			displayName: c.displayName,
+			color: c.color,
+		})),
+	};
 }
 
 async function handleCreateCategory(args: unknown): Promise<unknown> {
 	const config = args as { name?: string; color?: string };
 	const { name = "", color = "preset0" } = config;
-	if (!name) return { error: "name is required", errorCode: "MISSING_PARAMETER" };
+	if (!name)
+		return { error: "name is required", errorCode: "MISSING_PARAMETER" };
 
 	const Office: any = (globalThis as any).Office;
 	const mb = getMailbox();
-	await callbackToPromise((cb) => mb.masterCategories.addAsync([{ displayName: name, color }], cb));
+	await callbackToPromise((cb) =>
+		mb.masterCategories.addAsync([{ displayName: name, color }], cb),
+	);
 	return { name, color, created: true };
 }
 
 async function handleRemoveCategories(args: unknown): Promise<unknown> {
 	const config = args as { categories?: string[] };
 	const { categories = [] } = config;
-	if (!categories.length) return { error: "categories must be non-empty", errorCode: "MISSING_PARAMETER" };
+	if (!categories.length)
+		return {
+			error: "categories must be non-empty",
+			errorCode: "MISSING_PARAMETER",
+		};
 
 	const item = getMailboxItem();
 	const Office: any = (globalThis as any).Office;
@@ -420,7 +440,13 @@ async function handleRemoveCategories(args: unknown): Promise<unknown> {
 }
 
 async function handleDisplayNewMessage(args: unknown): Promise<unknown> {
-	const config = args as { to?: string[]; subject?: string; body?: string; cc?: string[]; bcc?: string[] };
+	const config = args as {
+		to?: string[];
+		subject?: string;
+		body?: string;
+		cc?: string[];
+		bcc?: string[];
+	};
 	const { to = [], subject = "", body = "", cc = [], bcc = [] } = config;
 
 	const Office: any = (globalThis as any).Office;
@@ -434,15 +460,38 @@ async function handleDisplayNewMessage(args: unknown): Promise<unknown> {
 
 	// displayNewMessageFormAsync creates a compose window — user must send manually
 	mb.displayNewMessageFormAsync(params, (result: any) => {
-		if (result.status !== "succeeded") console.error("displayNewMessageForm failed:", result.error);
+		if (result.status !== "succeeded")
+			console.error("displayNewMessageForm failed:", result.error);
 	});
 
-	return { to, cc, bcc, subject, note: "New message form opened. User must review and send." };
+	return {
+		to,
+		cc,
+		bcc,
+		subject,
+		note: "New message form opened. User must review and send.",
+	};
 }
 
 async function handleDisplayNewAppointment(args: unknown): Promise<unknown> {
-	const config = args as { subject?: string; body?: string; location?: string; start?: string; end?: string; requiredAttendees?: string[]; optionalAttendees?: string[] };
-	const { subject = "", body = "", location = "", start, end, requiredAttendees = [], optionalAttendees = [] } = config;
+	const config = args as {
+		subject?: string;
+		body?: string;
+		location?: string;
+		start?: string;
+		end?: string;
+		requiredAttendees?: string[];
+		optionalAttendees?: string[];
+	};
+	const {
+		subject = "",
+		body = "",
+		location = "",
+		start,
+		end,
+		requiredAttendees = [],
+		optionalAttendees = [],
+	} = config;
 
 	const mb = getMailbox();
 
@@ -455,10 +504,17 @@ async function handleDisplayNewAppointment(args: unknown): Promise<unknown> {
 	if (end) params.end = new Date(end);
 
 	mb.displayNewAppointmentFormAsync(params, (result: any) => {
-		if (result.status !== "succeeded") console.error("displayNewAppointmentForm failed:", result.error);
+		if (result.status !== "succeeded")
+			console.error("displayNewAppointmentForm failed:", result.error);
 	});
 
-	return { subject, location, requiredAttendees, optionalAttendees, note: "New appointment form opened. User must save/send." };
+	return {
+		subject,
+		location,
+		requiredAttendees,
+		optionalAttendees,
+		note: "New appointment form opened. User must save/send.",
+	};
 }
 
 async function handleGetAttachments(args: unknown): Promise<unknown> {

@@ -201,12 +201,12 @@ When working with the Word JavaScript API in the add-in:
 | 62  | `word_get_sections`                  | Word       | Read            |
 | 63  | `word_insert_list`                   | Word       | Write (tracked) |
 | 64  | `outlook_get_user_profile`           | Outlook    | Read            |
-| 65  | `outlook_get_master_categories`       | Outlook    | Read            |
-| 66  | `outlook_create_category`             | Outlook    | Write           |
-| 67  | `outlook_remove_categories`           | Outlook    | Write           |
-| 68  | `outlook_display_new_message`         | Outlook    | Write (gated)   |
-| 69  | `outlook_display_new_appointment`     | Outlook    | Write (gated)   |
-| 70  | `outlook_get_attachments`             | Outlook    | Read            |
+| 65  | `outlook_get_master_categories`      | Outlook    | Read            |
+| 66  | `outlook_create_category`            | Outlook    | Write           |
+| 67  | `outlook_remove_categories`          | Outlook    | Write           |
+| 68  | `outlook_display_new_message`        | Outlook    | Write (gated)   |
+| 69  | `outlook_display_new_appointment`    | Outlook    | Write (gated)   |
+| 70  | `outlook_get_attachments`            | Outlook    | Read            |
 
 **Mutation modes by host**:
 
