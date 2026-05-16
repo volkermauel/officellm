@@ -133,7 +133,7 @@ When working with the Word JavaScript API in the add-in:
 - **`getTextFrameOrNullObject` equivalent** — Word has no direct equivalent. Use `range.getHtml()` or `range.getText()` to read content. For null-safe patterns, check `range.isNullObject` after `context.sync()`.
 - **Range-based operations** — Word operates on `Range` objects. Get the current selection via `context.document.getSelection()`, then manipulate it as a range.
 
-### Tool Inventory (70 tools)
+### Tool Inventory (77 tools)
 
 | #   | Tool Name                            | Host       | Category        |
 | --- | ------------------------------------ | ---------- | --------------- |
@@ -207,7 +207,13 @@ When working with the Word JavaScript API in the add-in:
 | 68  | `outlook_display_new_message`        | Outlook    | Write (gated)   |
 | 69  | `outlook_display_new_appointment`    | Outlook    | Write (gated)   |
 | 70  | `outlook_get_attachments`            | Outlook    | Read            |
-
+| 71  | `office_export_document`             | **All**    | Read (export)   |
+| 72  | `word_find_replace`                  | Word       | Write (tracked) |
+| 73  | `excel_freeze_panes`                 | Excel      | Write           |
+| 74  | `excel_get_named_ranges`             | Excel      | Read            |
+| 75  | `excel_add_named_range`              | Excel      | Write           |
+| 76  | `excel_add_data_validation`          | Excel      | Write           |
+| 77  | `excel_remove_data_validation`       | Excel      | Write           |
 **Mutation modes by host**:
 
 - **Word**: Tracked changes (`changeTrackingMode: "TrackMineOnly"`) — user accepts/rejects via Word Review ribbon or tracked change tools. No confirmation gate needed.

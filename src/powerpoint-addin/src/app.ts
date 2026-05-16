@@ -32,6 +32,11 @@ function processCommand(
 	commandName: string,
 	args: unknown,
 ): Promise<unknown> {
+	// Shared tools handled before host dispatch
+	if (commandName === "office_export_document") {
+		return handleExportDocument(args);
+	}
+
 	for (const [prefix, handler] of Object.entries(HOST_DISPATCH)) {
 		if (commandName.startsWith(prefix)) {
 			return handler(commandId, commandName, args);
@@ -231,3 +236,104 @@ window.refreshContext = refreshContext;
 // --- Start ---
 
 console.log("Office LLM Harness PowerPoint Add-in loaded");
+console.log("Office LLM Harness PowerPoint Add-in loaded");
+
+// ── Document Export (Phase 13) ──────────────────────────────────
+
+async function handleExportDocument(args: unknown): Promise<unknown> {
+	const config = args as { format?: string; maxSizeMB?: number };
+	const { format = "pdf", maxSizeMB = 50 } = config;
+
+	const Office: any = (window as any).Office;
+	if (!Office?.context?.document) {
+		return {
+			error: "Document context not available",
+			errorCode: "HOST_NOT_AVAILABLE",
+		};
+	}
+
+	// Outlook doesn't support getFileAsync
+	const host = Office?.context?.mailbox ? "outlook" : "";
+	if (host === "outlook") {
+		return {
+			error: "Outlook does not support document export",
+			errorCode: "HOST_NOT_SUPPORTED",
+		};
+	}
+
+	const fileType = format === "native" ? "compressed" : "pdf";
+
+	return new Promise((resolve) => {
+		Office.context.document.getFileAsync(
+			fileType,
+			{ sliceSize: 65536 },
+			(result: any) => {
+				if (result.status === "succeeded") {
+					const file = result.value;
+					const sliceCount = file.sliceCount;
+					const fileSize = file.size;
+
+					if (fileSize > maxSizeMB * 1024 * 1024) {
+						file.closeAsync(() => {});
+						resolve({
+							error: `File too large: ${(fileSize / 1024 / 1024).toFixed(1)}MB. Max: ${maxSizeMB}MB.`,
+							errorCode: "FILE_TOO_LARGE",
+							sizeBytes: fileSize,
+						});
+						return;
+					}
+
+					const slices: string[] = [];
+					let received = 0;
+
+					function getSlice() {
+						file.getSliceAsync(received, (sliceResult: any) => {
+							if (sliceResult.status === "succeeded") {
+								// Convert byte array to base64
+								const bytes = sliceResult.value.data;
+								let binary = "";
+								for (let i = 0; i < bytes.length; i++) {
+									binary += String.fromCharCode(bytes[i]);
+								}
+								slices.push(btoa(binary));
+								received++;
+
+								if (received === sliceCount) {
+									const base64 = slices.join("");
+									file.closeAsync(() => {});
+
+									resolve({
+										base64,
+										format,
+										sizeBytes: fileSize,
+										mimeType:
+											format === "pdf"
+												? "application/pdf"
+												: "application/octet-stream",
+										exported: true,
+									});
+								} else {
+									getSlice();
+								}
+							} else {
+								file.closeAsync(() => {});
+								resolve({
+									error:
+										sliceResult.error?.message || "Slice extraction failed",
+									errorCode: "HOST_NOT_AVAILABLE",
+								});
+							}
+						});
+					}
+
+					getSlice();
+				} else {
+					resolve({
+						error: result.error?.message || "getFileAsync failed",
+						errorCode: "HOST_NOT_AVAILABLE",
+					});
+				}
+			},
+		);
+	});
+}

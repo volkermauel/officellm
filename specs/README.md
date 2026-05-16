@@ -29,24 +29,24 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 
 ## Phases
 
-| #   | Spec                                        | Branch                  | Scope                                                                                                                        |
-| --- | ------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 0   | [Spike](001-spike/)                         | `001-spike`             | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                            |
-| 1   | [PowerPoint MVP](002-powerpoint-mvp/)       | `002-powerpoint-mvp`    | Deck outline, slide read, shape update, speaker notes, audit log, task pane                                                  |
-| 2   | [Word MVP](003-word-mvp/)                   | `003-word-mvp`          | Outline, paragraphs, rewrite selection (tracked changes), review comments, shared context abstraction                        |
-| 3   | [Excel MVP](004-excel-mvp/)                 | `004-excel-mvp`         | Workbook map, read/write range, write formula, create table, range limits, formula validation                                |
-| 4   | [Outlook MVP](005-outlook-mvp/)             | `005-outlook-mvp`       | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate      |
-| 5   | [PowerPoint v2](006-powerpoint-v2/)         | `006-powerpoint-v2`     | Full shape properties, image export, table reading, selection context, direct write operations, shape CRUD, slide management |
-| 8   | [SignalR Transport](008-signalr-transport/) | `008-signalr-transport` | WebSocket transport upgrade, fix instance ID naming, concurrent commands, HTTP fallback                                      |
-| 9   | [Outlook Graph](009-outlook-graph/)         | `009-outlook-graph`     | Folder listing, email search, calendar events, shared mailboxes, compose email, Graph API via NAA proxy                      |
-| 10  | [Excel Analysis](010-excel-analysis/)       | `010-excel-analysis`    | Sheet management, sort, filter, charts, conditional formatting, cell formatting, pivot tables                                |
-| 11  | [Word Structure](011-word-structure/)       | `011-word-structure`    | Tables CRUD, headers/footers, replace selection, images, styles, sections, lists                                             |
-| 12  | [Cross-Cutting](012-cross-cutting/)         | `012-cross-cutting`     | Unified document context, consistent error codes, document stats, batch operations                                           |
-| 13  | [Document Export](013-document-export/)     | `013-document-export`  | PDF/native export via getFileAsync, visual verification, document backup                                                     |
-| 14  | [Word Find & Replace](014-word-find-replace/) | `014-word-find-replace` | Regex/wildcard find & replace, scoped replacement, preview mode, tracked changes                                              |
-| 15  | [Change Log](015-change-log/)               | `015-change-log`        | Operation audit trail, undo operations, change summaries                                                                     |
-| 16  | [Excel Navigation](016-excel-navigation/)   | `016-excel-navigation`  | Freeze panes, named ranges (get/add), workbook navigation aids                                                               |
-| 17  | [Excel Validation](017-excel-validation/)   | `017-excel-validation`  | Data validation (dropdowns, number/date constraints, custom formulas), input messages, error alerts                           |
+| #   | Spec                                          | Branch                  | Scope                                                                                                                        |
+| --- | --------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 0   | [Spike](001-spike/)                           | `001-spike`             | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                            |
+| 1   | [PowerPoint MVP](002-powerpoint-mvp/)         | `002-powerpoint-mvp`    | Deck outline, slide read, shape update, speaker notes, audit log, task pane                                                  |
+| 2   | [Word MVP](003-word-mvp/)                     | `003-word-mvp`          | Outline, paragraphs, rewrite selection (tracked changes), review comments, shared context abstraction                        |
+| 3   | [Excel MVP](004-excel-mvp/)                   | `004-excel-mvp`         | Workbook map, read/write range, write formula, create table, range limits, formula validation                                |
+| 4   | [Outlook MVP](005-outlook-mvp/)               | `005-outlook-mvp`       | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate      |
+| 5   | [PowerPoint v2](006-powerpoint-v2/)           | `006-powerpoint-v2`     | Full shape properties, image export, table reading, selection context, direct write operations, shape CRUD, slide management |
+| 8   | [SignalR Transport](008-signalr-transport/)   | `008-signalr-transport` | WebSocket transport upgrade, fix instance ID naming, concurrent commands, HTTP fallback                                      |
+| 9   | [Outlook Graph](009-outlook-graph/)           | `009-outlook-graph`     | Folder listing, email search, calendar events, shared mailboxes, compose email, Graph API via NAA proxy                      |
+| 10  | [Excel Analysis](010-excel-analysis/)         | `010-excel-analysis`    | Sheet management, sort, filter, charts, conditional formatting, cell formatting, pivot tables                                |
+| 11  | [Word Structure](011-word-structure/)         | `011-word-structure`    | Tables CRUD, headers/footers, replace selection, images, styles, sections, lists                                             |
+| 12  | [Cross-Cutting](012-cross-cutting/)           | `012-cross-cutting`     | Unified document context, consistent error codes, document stats, batch operations                                           |
+| 13  | [Document Export](013-document-export/)       | `013-document-export`   | PDF/native export via getFileAsync, visual verification, document backup                                                     |
+| 14  | [Word Find & Replace](014-word-find-replace/) | `014-word-find-replace` | Regex/wildcard find & replace, scoped replacement, preview mode, tracked changes                                             |
+| 15  | [Change Log](015-change-log/)                 | `015-change-log`        | Operation audit trail, undo operations, change summaries                                                                     |
+| 16  | [Excel Navigation](016-excel-navigation/)     | `016-excel-navigation`  | Freeze panes, named ranges (get/add), workbook navigation aids                                                               |
+| 17  | [Excel Validation](017-excel-validation/)     | `017-excel-validation`  | Data validation (dropdowns, number/date constraints, custom formulas), input messages, error alerts                          |
 
 ## Progression
 
@@ -121,18 +121,18 @@ The instance registration (`POST /instances/register`) includes the `appName` fi
 
 ### Planned (Phases 13–17)
 
-| Tool                           | Host    | Phase | Scope                                            |
-| ------------------------------ | ------- | ----- | ------------------------------------------------ |
-| `office_export_document`       | **All** | 13    | Export as PDF or native (PPTX/DOCX/XLSX)         |
-| `word_find_replace`            | Word    | 14    | Regex/wildcard find & replace with tracked changes|
-| `word_find_all`                | Word    | 14    | Preview matches without replacing                |
-| `office_get_change_log`        | **All** | 15    | Query audit trail for all operations             |
-| `office_undo_last`             | **All** | 15    | Undo last operation via Ctrl+Z                   |
-| `excel_freeze_panes`           | Excel   | 16    | Freeze/unfreeze rows and columns                 |
-| `excel_get_named_ranges`       | Excel   | 16    | List all named ranges                            |
-| `excel_add_named_range`        | Excel   | 16    | Create or update a named range                   |
-| `excel_add_data_validation`    | Excel   | 17    | Dropdown, number, date, custom validation        |
-| `excel_remove_data_validation` | Excel   | 17    | Clear validation from a range                    |
+| Tool                           | Host    | Phase | Scope                                              |
+| ------------------------------ | ------- | ----- | -------------------------------------------------- |
+| `office_export_document`       | **All** | 13    | Export as PDF or native (PPTX/DOCX/XLSX)           |
+| `word_find_replace`            | Word    | 14    | Regex/wildcard find & replace with tracked changes |
+| `word_find_all`                | Word    | 14    | Preview matches without replacing                  |
+| `office_get_change_log`        | **All** | 15    | Query audit trail for all operations               |
+| `office_undo_last`             | **All** | 15    | Undo last operation via Ctrl+Z                     |
+| `excel_freeze_panes`           | Excel   | 16    | Freeze/unfreeze rows and columns                   |
+| `excel_get_named_ranges`       | Excel   | 16    | List all named ranges                              |
+| `excel_add_named_range`        | Excel   | 16    | Create or update a named range                     |
+| `excel_add_data_validation`    | Excel   | 17    | Dropdown, number, date, custom validation          |
+| `excel_remove_data_validation` | Excel   | 17    | Clear validation from a range                      |
 
 ## Workflow
 

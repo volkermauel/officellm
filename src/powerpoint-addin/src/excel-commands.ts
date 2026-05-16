@@ -72,6 +72,21 @@ export async function processCommand(
 			case "excel_create_pivottable":
 				result = await handleCreatePivotTable(args);
 				break;
+			case "excel_freeze_panes":
+				result = await handleFreezePanes(args);
+				break;
+			case "excel_get_named_ranges":
+				result = await handleGetNamedRanges(args);
+				break;
+			case "excel_add_named_range":
+				result = await handleAddNamedRange(args);
+				break;
+			case "excel_add_data_validation":
+				result = await handleAddDataValidation(args);
+				break;
+			case "excel_remove_data_validation":
+				result = await handleRemoveDataValidation(args);
+				break;
 			default:
 				result = { error: `Unknown Excel command: ${commandName}` };
 		}
@@ -965,3 +980,173 @@ async function handleCreatePivotTable(args: unknown): Promise<unknown> {
 		};
 	});
 }
+
+// ── Phase 16: Excel Navigation ───────────────────────────────────
+
+async function handleFreezePanes(args: unknown): Promise<unknown> {
+	const config = args as { sheetName: string; at: string; action?: string };
+	const { sheetName, at, action = "freeze" } = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+
+		if (action === "unfreeze") {
+			sheet.freezePanes.unfreeze();
+			await ctx.sync();
+			return { unfrozen: true, sheetName };
+		}
+
+		// Freeze at the specified cell
+		const freezeRange = sheet.getRange(at);
+		sheet.freezePanes.freezeAt(freezeRange);
+		await ctx.sync();
+
+		return { frozen: true, at, sheetName, undoable: true };
+	});
+}
+
+async function handleGetNamedRanges(_args: unknown): Promise<unknown> {
+	return runInExcel(async (ctx) => {
+		const names = ctx.workbook.names;
+		names.load("items");
+		await ctx.sync();
+
+		const ranges: any[] = [];
+		for (const item of names.items) {
+			item.load(["name", "comment", "scope"]);
+			const ref = item.getRangeOrNullObject();
+			ref.load(["address"]);
+		}
+		await ctx.sync();
+
+		for (const item of names.items) {
+			const ref = item.getRangeOrNullObject();
+			ranges.push({
+				name: item.name,
+				comment: item.comment || "",
+				scope: item.scope || "workbook",
+				address: ref.isNullObject ? null : ref.address,
+			});
+		}
+
+		return { namedRanges: ranges, count: ranges.length };
+	});
+}
+
+async function handleAddNamedRange(args: unknown): Promise<unknown> {
+	const config = args as { name: string; sheetName: string; address: string; comment?: string };
+	const { name, sheetName, address, comment } = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+		const range = sheet.getRange(address);
+
+		ctx.workbook.names.add(name, range, comment || "");
+		await ctx.sync();
+
+		return { name, sheetName, address, comment: comment || "", created: true, undoable: true };
+	});
+}
+
+// ── Phase 17: Excel Data Validation ──────────────────────────────
+
+async function handleAddDataValidation(args: unknown): Promise<unknown> {
+	const config = args as {
+		sheetName: string;
+		address: string;
+		type: string;
+		operator?: string;
+		formula1?: string;
+		formula2?: string;
+		showInputMessage?: boolean;
+		inputTitle?: string;
+		inputMessage?: string;
+		showErrorMessage?: boolean;
+		errorTitle?: string;
+		errorMessage?: string;
+		errorStyle?: string;
+	};
+	const {
+		sheetName,
+		address,
+		type,
+		operator = "between",
+		formula1,
+		formula2,
+		showInputMessage = true,
+		inputTitle,
+		inputMessage,
+		showErrorMessage = true,
+		errorTitle,
+		errorMessage,
+		errorStyle = "stop",
+	} = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+		const range = sheet.getRange(address);
+		const dv = range.dataValidation;
+
+		// Map type to Excel.DataValidationType
+		const typeMap: Record<string, string> = {
+			list: "list",
+			wholeNumber: "wholeNumber",
+			decimal: "decimal",
+			date: "date",
+			textLength: "textLength",
+			custom: "custom",
+		};
+
+		dv.type = typeMap[type] || type;
+
+		// Set rule based on type
+		if (type === "list") {
+			dv.rule = { list: { inCellDropDown: true, formula1: formula1 || "" } };
+		} else if (type === "custom") {
+			dv.rule = { custom: { formula1: formula1 || "" } };
+		} else {
+			// Number/date/textLength validation with operator
+			const rule: any = { operator };
+			if (formula1 !== undefined) rule.formula1 = formula1;
+			if (formula2 !== undefined) rule.formula2 = formula2;
+			dv.rule = rule;
+		}
+
+		// Input message
+		if (showInputMessage) {
+			dv.prompt = {
+				show: true,
+				title: inputTitle || "",
+				message: inputMessage || "",
+			};
+		}
+
+		// Error alert
+		if (showErrorMessage) {
+			dv.errorAlert = {
+				show: true,
+				style: errorStyle,
+				title: errorTitle || "Invalid input",
+				message: errorMessage || "Please enter a valid value.",
+			};
+		}
+
+		await ctx.sync();
+		return { sheetName, address, type, operator, applied: true, undoable: true };
+	});
+}
+
+async function handleRemoveDataValidation(args: unknown): Promise<unknown> {
+	const config = args as { sheetName: string; address: string };
+	const { sheetName, address } = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+		const range = sheet.getRange(address);
+		range.dataValidation.clear();
+		await ctx.sync();
+
+		return { sheetName, address, removed: true, undoable: true };
+	});
+}
+

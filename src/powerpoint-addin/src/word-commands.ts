@@ -87,7 +87,8 @@ export async function processCommand(
 			case "word_insert_list":
 				result = await handleInsertList(args);
 				break;
-				result = await handleRejectAllChanges(args);
+			case "word_find_replace":
+				result = await handleFindReplace(args);
 				break;
 			default:
 				result = { error: `Unknown Word command: ${commandName}` };
@@ -122,9 +123,7 @@ function runInWord<T>(fn: (ctx: any) => Promise<T>): Promise<T> {
 	});
 }
 
-function _safeStr(val: any, fallback = ""): string {
-	return val != null ? String(val) : fallback;
-}
+
 
 // ── Read tools ──────────────────────────────────────────────────
 
@@ -930,6 +929,110 @@ async function handleInsertList(args: unknown): Promise<unknown> {
 			itemCount: items.length,
 			afterParagraphIndex,
 			inserted: true,
+			tracked: true,
+		};
+});
+}
+
+// ── Phase 14: Find & Replace ──────────────────────────────────────
+
+async function handleFindReplace(args: unknown): Promise<unknown> {
+	const config = args as {
+		findText: string;
+		replaceText?: string;
+		matchCase?: boolean;
+		matchWholeWord?: boolean;
+		useWildcards?: boolean;
+		previewOnly?: boolean;
+		scopeFromParagraph?: number;
+		scopeToParagraph?: number;
+	};
+
+	const {
+		findText,
+		replaceText = "",
+		matchCase = false,
+		matchWholeWord = false,
+		useWildcards = false,
+		previewOnly = false,
+		scopeFromParagraph,
+		scopeToParagraph,
+	} = config;
+
+	const Word: any = (window as any).Word;
+
+	return runInWord(async (ctx: any) => {
+		const originalMode = ctx.document.changeTrackingMode;
+
+		// Build search options
+		const searchOptions: any = {};
+		if (matchCase) searchOptions.matchCase = true;
+		if (matchWholeWord) searchOptions.matchWholeWord = true;
+		if (useWildcards) searchOptions.matchWildcards = true;
+
+		// Determine search scope
+		let searchBody: any;
+		if (scopeFromParagraph !== undefined || scopeToParagraph !== undefined) {
+			const paras = ctx.document.body.paragraphs;
+			paras.load("items");
+			await ctx.sync();
+			const from = scopeFromParagraph ?? 0;
+			const to = scopeToParagraph ?? paras.items.length - 1;
+			const startPara = paras.items[Math.max(0, from)];
+			const endPara = paras.items[Math.min(to, paras.items.length - 1)];
+			const startRange = startPara.getRange("Start");
+			const endRange = endPara.getRange("End");
+			searchBody = startRange.expandTo(endRange);
+		} else {
+			searchBody = ctx.document.body;
+		}
+
+		const searchResults = searchBody.search(findText, searchOptions);
+		searchResults.load(["items"]);
+		await ctx.sync();
+
+		if (previewOnly) {
+			const previews: any[] = [];
+			for (let i = 0; i < Math.min(searchResults.items.length, 50); i++) {
+				const range = searchResults.items[i];
+				range.load(["text", "paragraphsUnique"]);
+			}
+			if (searchResults.items.length > 0) {
+				await ctx.sync();
+			}
+			for (let i = 0; i < Math.min(searchResults.items.length, 50); i++) {
+				const range = searchResults.items[i];
+				previews.push({
+					index: i,
+					text: range.text,
+				});
+			}
+			return {
+				previewOnly: true,
+				matchCount: searchResults.items.length,
+				previews,
+			};
+		}
+
+		// Perform replacements with tracked changes
+		if (!previewOnly) {
+			ctx.document.changeTrackingMode = (Word as any).ChangeTrackingMode.trackMineOnly;
+		}
+
+		const matchCount = searchResults.items.length;
+		for (let i = 0; i < searchResults.items.length; i++) {
+			searchResults.items[i].insertText(replaceText, "Replace");
+		}
+		await ctx.sync();
+
+		if (!previewOnly) {
+			ctx.document.changeTrackingMode = originalMode;
+			await ctx.sync();
+		}
+
+		return {
+			replacements: matchCount,
+			findText,
 			tracked: true,
 		};
 	});

@@ -10,12 +10,13 @@ public class McpToolEngineTests
 		McpToolEngine.ResetForTesting();
 	}
 
-    public void GetToolDefinitions_Returns70Tools()
+    [Fact]
+    public void GetToolDefinitions_Returns77Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(70, tools.Length);
+        Assert.Equal(77, tools.Length);
     }
 
     [Fact]
@@ -115,6 +116,21 @@ public class McpToolEngineTests
         Assert.Contains("outlook_display_new_message", names);
         Assert.Contains("outlook_display_new_appointment", names);
         Assert.Contains("outlook_get_attachments", names);
+
+        // Phase 13: Document Export
+        Assert.Contains("office_export_document", names);
+
+        // Phase 14: Word Find & Replace
+        Assert.Contains("word_find_replace", names);
+
+        // Phase 16: Excel Navigation
+        Assert.Contains("excel_freeze_panes", names);
+        Assert.Contains("excel_get_named_ranges", names);
+        Assert.Contains("excel_add_named_range", names);
+
+        // Phase 17: Excel Validation
+        Assert.Contains("excel_add_data_validation", names);
+        Assert.Contains("excel_remove_data_validation", names);
     }
 
     [Fact]
