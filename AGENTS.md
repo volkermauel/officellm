@@ -108,6 +108,68 @@ dotnet run --project src/mcp-server/
 dotnet run --project src/mcp-server/ 8080
 ```
 
+## Word JS API Rules
+
+When working with the Word JavaScript API in the add-in:
+
+- **`Word.run()` is lowercase** — `Word.run(async (context) => { ... })`, not `Word.Run()`.
+- **`context.sync()` is required before reading properties** — After loading objects with `.load()`, you MUST call `await context.sync()` before accessing loaded properties. Failing to sync results in "property not loaded" errors.
+- **changeTrackingMode pattern for mutations** — Word tracked changes use `document.changeTrackingMode`:
+  ```typescript
+  // Standard mutation pattern:
+  // 1. Save current mode
+  // 2. Set TrackMineOnly
+  // 3. Perform mutation
+  // 4. Restore original mode
+  // 5. Return { tracked: true }
+  const originalMode = context.document.changeTrackingMode;
+  context.document.changeTrackingMode = Word.ChangeTrackingMode.trackMineOnly;
+  // ... perform mutations ...
+  context.document.changeTrackingMode = originalMode;
+  await context.sync();
+  ```
+- **`changeTrackingMode` values**: `"Off"` | `"TrackAll"` | `"TrackMineOnly"` (requires WordApi 1.4+)
+- **`getTextFrameOrNullObject` equivalent** — Word has no direct equivalent. Use `range.getHtml()` or `range.getText()` to read content. For null-safe patterns, check `range.isNullObject` after `context.sync()`.
+- **Range-based operations** — Word operates on `Range` objects. Get the current selection via `context.document.getSelection()`, then manipulate it as a range.
+
+### Tool Inventory (29 tools)
+
+| # | Tool Name | Host | Category |
+|---|-----------|------|----------|
+| 1 | `powerpoint_get_slides` | PowerPoint | Read |
+| 2 | `powerpoint_get_slide` | PowerPoint | Read |
+| 3 | `powerpoint_get_shapes` | PowerPoint | Read |
+| 4 | `powerpoint_get_shape` | PowerPoint | Read |
+| 5 | `powerpoint_get_shape_text` | PowerPoint | Read |
+| 6 | `powerpoint_set_shape_text` | PowerPoint | Write |
+| 7 | `powerpoint_add_shape` | PowerPoint | Write |
+| 8 | `powerpoint_delete_shape` | PowerPoint | Write |
+| 9 | `powerpoint_set_shape_properties` | PowerPoint | Write |
+| 10 | `powerpoint_add_slide` | PowerPoint | Write |
+| 11 | `powerpoint_delete_slide` | PowerPoint | Write |
+| 12 | `powerpoint_move_slide` | PowerPoint | Write |
+| 13 | `powerpoint_duplicate_slide` | PowerPoint | Write |
+| 14 | `powerpoint_set_slide_layout` | PowerPoint | Write |
+| 15 | `powerpoint_get_notes` | PowerPoint | Read |
+| 16 | `powerpoint_set_notes` | PowerPoint | Write |
+| 17 | `powerpoint_get_selection` | PowerPoint | Read |
+| 18 | `powerpoint_set_selection` | PowerPoint | Write |
+| 19 | `office_get_active_app` | Shared | Read |
+| 20 | `word_get_outline` | Word | Read |
+| 21 | `word_get_paragraphs` | Word | Read |
+| 22 | `word_replace_text` | Word | Write (tracked) |
+| 23 | `word_insert_after_heading` | Word | Write (tracked) |
+| 24 | `word_add_review_comments` | Word | Write |
+| 25 | `word_get_selection` | Word | Read |
+| 26 | `word_get_tracked_changes` | Word | Read |
+| 27 | `word_accept_all_changes` | Word | Write |
+| 28 | `word_reject_all_changes` | Word | Write |
+| 29 | `office_get_document_context` | Shared | Read |
+
+**Mutation modes by host**:
+- **Word**: Tracked changes (`changeTrackingMode: "TrackMineOnly"`) — user accepts/rejects via Word Review ribbon or tracked change tools. No confirmation gate needed.
+- **PowerPoint**: Direct write with undo group per `PowerPoint.run()` batch — no tracked changes API exists. Undo (Ctrl+Z) reverses the entire batch.
+
 ## Speckit Workflow
 
 For feature development, follow the speckit workflow:
@@ -118,3 +180,14 @@ For feature development, follow the speckit workflow:
 4. `/speckit.implement` — Execute implementation
 
 See `specs/README.md` for phase details.
+
+## Word JS API Quick Reference
+
+```
+changeTrackingMode: "Off" | "TrackAll" | "TrackMineOnly"  (WordApi 1.4+)
+
+Mutation pattern:
+  save mode → set TrackMineOnly → mutate → restore mode → return { tracked: true }
+
+PowerPoint: NO tracked changes API. Direct-write with undo grouped per PowerPoint.run() batch.
+```

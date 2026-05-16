@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Implement Word outline, selection read, rewrite selection and add comment tools. Use Word comments or tracked changes for review-oriented workflows. Add shared document context abstraction across Word and PowerPoint."
+**Input**: User description: "Implement Word outline, selection read, replace text (tracked changes), add comment, and tracked change management tools. Use Word tracked changes as the default mutation mode for Word (no confirmation gate needed). PowerPoint has no tracked changes API and uses undo-grouped direct writes. Add shared document context abstraction across Word and PowerPoint."
 
 ## Architecture
 
@@ -44,20 +44,21 @@ A legal reviewer opens a lengthy Word document and asks Open WebUI to extract th
 
 ---
 
-### User Story 2 — Editor rewrites selected text with tracked preview (Priority: P1)
+### User Story 2 — Editor replaces text via tracked changes (Priority: P1)
 
-A writer selects a paragraph in their Word document, asks Open WebUI to rewrite it in a different tone, sees the before/after diff in the task pane, and either approves or rejects the change. The approved change is applied as a tracked change (not directly into the document).
+A writer selects a paragraph in their Word document, asks Open WebUI to rewrite it in a different tone. The change is applied as a Word tracked change (insertion + deletion) using `changeTrackingMode: "TrackMineOnly"`. The user can then accept or reject the change using Word's native Review ribbon or via the `word_accept_all_changes` / `word_reject_all_changes` tools.
 
-**Why this priority**: This is the core Word mutation workflow. Using tracked changes preserves document integrity and gives the user full undo capability through Word's native review tools.
+**Why this priority**: This is the core Word mutation workflow. Using Word's native tracked changes preserves document integrity, gives the user full accept/reject capability through Word's built-in review tools, and avoids the need for a custom confirmation gate in the add-in.
 
-**Independent Test**: Select text, call `word_rewrite_selection`, approve the diff, verify a tracked change appears in Word.
+**Independent Test**: Select text, call `word_replace_text`, verify a tracked change (deletion of old text + insertion of new text) appears in Word.
 
 **Acceptance Scenarios**:
 
-1. **Given** selected text "The project was completed on time", **When** developer calls `word_rewrite_selection` with tone "formal", **Then** the task pane shows a diff preview and the change is NOT applied until approved
-2. **Given** user approves the diff, **When** the change is applied, **Then** it appears as a Word tracked change (inserted text marked with the add-in's author name)
-3. **Given** user rejects the diff, **When** no action is taken, **Then** the document remains unchanged
-4. **Given** the selection spans multiple paragraphs, **When** developer calls `word_rewrite_selection`, **Then** the diff covers all selected content
+1. **Given** selected text "The project was completed on time", **When** developer calls `word_replace_text` with `replacement` "The project concluded within the scheduled timeframe", **Then** a tracked deletion of the original and tracked insertion of the replacement appear in Word
+2. **Given** a tracked change from the add-in, **When** user calls `word_get_tracked_changes`, **Then** the response lists the change with type (insert/delete), author, range, and text
+3. **Given** tracked changes from the add-in, **When** user calls `word_accept_all_changes`, **Then** all tracked changes are accepted and the document reflects the new text
+4. **Given** tracked changes from the add-in, **When** user calls `word_reject_all_changes`, **Then** all tracked changes are rejected and the original text is restored
+5. **Given** the selection spans multiple paragraphs, **When** developer calls `word_replace_text`, **Then** all selected paragraphs are tracked as deleted and the replacement inserted
 
 ---
 
@@ -123,12 +124,16 @@ The system provides a unified document context model that works across both Word
 - **FR-001**: The MCP server MUST expose `word_get_outline` returning headings with level, text, style name, and paragraph range for the active Word document.
 - **FR-002**: `word_get_outline` MUST accept an optional `maxDepth` parameter (default: 3).
 - **FR-003**: The MCP server MUST expose `word_get_paragraphs` returning paragraphs by range, heading, or selection neighborhood.
-- **FR-004**: The MCP server MUST expose `word_rewrite_selection` that rewrites selected text and returns a diff preview requiring user confirmation.
-- **FR-005**: Approved rewrites MUST be applied as Word tracked changes (not direct edits) to preserve undo capability.
+- **FR-004**: The MCP server MUST expose `word_replace_text` that replaces the current selection (or specified range) with new text using Word tracked changes (`changeTrackingMode: "TrackMineOnly"`). The tool saves the current tracking mode, enables TrackMineOnly, performs the replacement, and restores the original mode. Returns `{ tracked: true }`.
+- **FR-005**: Word mutations MUST use tracked changes by default (not direct edits). This satisfies the confirmation requirement — users accept/reject through Word's native Review ribbon or the tracked change management tools.
+- **FR-005a**: The MCP server MUST expose `word_get_tracked_changes` returning a list of tracked changes in the document with type (insert/delete), author, range, and text content.
+- **FR-005b**: The MCP server MUST expose `word_accept_all_changes` that accepts all tracked changes in the document.
+- **FR-005c**: The MCP server MUST expose `word_reject_all_changes` that rejects all tracked changes in the document, restoring original content.
+- **FR-005d**: PowerPoint has NO tracked changes API. PowerPoint mutations are direct-write with undo grouped per `PowerPoint.run()` batch. This is a fundamental platform difference.
 - **FR-006**: The MCP server MUST expose `word_insert_after_heading` that inserts generated text after a specified heading.
 - **FR-007**: The MCP server MUST expose `word_add_review_comments` that adds Word comments to the current selection or cursor position.
 - **FR-008**: All Word mutation tools MUST use the shared document context envelope for reporting.
-- **FR-009**: The task pane MUST display before/after diffs for Word rewrites, showing the original and proposed text side by side.
+- **FR-009**: Word mutations are tracked changes visible in Word's native Review pane. No separate diff display in the task pane is required — Word's built-in tracked changes UI serves this purpose.
 - **FR-010**: The shared document context abstraction MUST provide a unified response structure across Word and PowerPoint with host-specific selection fields.
 
 ### Key Entities
@@ -144,7 +149,7 @@ The system provides a unified document context model that works across both Word
 ### Measurable Outcomes
 
 - **SC-001**: A developer can extract the outline of a 200-page Word document from Open WebUI within 5 seconds.
-- **SC-002**: A rewrite operation requires explicit user approval and appears as a tracked change (not a direct edit).
+- **SC-002**: A replace operation applies the change as a tracked change. User approval is handled through Word's native Review tools (Accept/Reject) or the `word_accept_all_changes`/`word_reject_all_changes` tools.
 - **SC-003**: Comments added via Open WebUI are correctly attached to the intended document ranges in Word.
 - **SC-004**: The shared document context envelope is structurally identical for Word and PowerPoint responses.
 - **SC-005**: Insert operations after headings place content at the correct paragraph boundary (no offset errors).
