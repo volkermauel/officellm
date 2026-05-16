@@ -133,7 +133,7 @@ When working with the Word JavaScript API in the add-in:
 - **`getTextFrameOrNullObject` equivalent** — Word has no direct equivalent. Use `range.getHtml()` or `range.getText()` to read content. For null-safe patterns, check `range.isNullObject` after `context.sync()`.
 - **Range-based operations** — Word operates on `Range` objects. Get the current selection via `context.document.getSelection()`, then manipulate it as a range.
 
-### Tool Inventory (53 tools)
+### Tool Inventory (63 tools)
 
 | #   | Tool Name                            | Host       | Category        |
 | --- | ------------------------------------ | ---------- | --------------- |
@@ -190,6 +190,16 @@ When working with the Word JavaScript API in the add-in:
 | 51  | `excel_format_range`                 | Excel      | Write           |
 | 52  | `excel_apply_conditional_formatting` | Excel      | Write           |
 | 53  | `excel_create_pivottable`            | Excel      | Write           |
+| 54  | `word_get_tables`                    | Word       | Read            |
+| 55  | `word_insert_table`                  | Word       | Write (tracked) |
+| 56  | `word_update_table_cell`             | Word       | Write (tracked) |
+| 57  | `word_get_headers_footers`           | Word       | Read            |
+| 58  | `word_set_header_footer`             | Word       | Write (tracked) |
+| 59  | `word_replace_selection`             | Word       | Write (tracked) |
+| 60  | `word_insert_image`                  | Word       | Write           |
+| 61  | `word_apply_style`                   | Word       | Write           |
+| 62  | `word_get_sections`                  | Word       | Read            |
+| 63  | `word_insert_list`                   | Word       | Write (tracked) |
 
 **Mutation modes by host**:
 

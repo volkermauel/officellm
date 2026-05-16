@@ -486,7 +486,12 @@ async function handleAddSheet(args: unknown): Promise<unknown> {
 		if (config.position !== undefined) ws.position = config.position;
 		ws.load("name,position");
 		await ctx.sync();
-		return { name: String(ws.name), position: ws.position, created: true, undoable: true };
+		return {
+			name: String(ws.name),
+			position: ws.position,
+			created: true,
+			undoable: true,
+		};
 	});
 }
 
@@ -500,7 +505,10 @@ async function handleDeleteSheet(args: unknown): Promise<unknown> {
 		worksheets.load("items");
 		await ctx.sync();
 		if (worksheets.items.length <= 1) {
-			return { error: "Cannot delete the last worksheet", errorCode: "CANNOT_DELETE_LAST_SHEET" };
+			return {
+				error: "Cannot delete the last worksheet",
+				errorCode: "CANNOT_DELETE_LAST_SHEET",
+			};
 		}
 		const sheet = worksheets.getItem(sheetName);
 		sheet.delete();
@@ -524,8 +532,18 @@ async function handleRenameSheet(args: unknown): Promise<unknown> {
 }
 
 async function handleSortRange(args: unknown): Promise<unknown> {
-	const config = args as { sheetName?: string; address?: string; criteria?: Array<{ column: number; ascending: boolean }>; hasHeader?: boolean };
-	const { sheetName = "", address = "", criteria = [], hasHeader = true } = config;
+	const config = args as {
+		sheetName?: string;
+		address?: string;
+		criteria?: Array<{ column: number; ascending: boolean }>;
+		hasHeader?: boolean;
+	};
+	const {
+		sheetName = "",
+		address = "",
+		criteria = [],
+		hasHeader = true,
+	} = config;
 	if (!sheetName) return { error: "sheetName is required" };
 	if (!address) return { error: "address is required" };
 	if (!criteria.length) return { error: "criteria must be non-empty" };
@@ -535,19 +553,41 @@ async function handleSortRange(args: unknown): Promise<unknown> {
 		const range = sheet.getRange(address);
 		range.load("rowCount");
 		await ctx.sync();
-		if (range.rowCount <= 1) return { error: "Range too small to sort", errorCode: "RANGE_TOO_SMALL" };
+		if (range.rowCount <= 1)
+			return { error: "Range too small to sort", errorCode: "RANGE_TOO_SMALL" };
 
 		const sort = range.sort;
-		const sortFields = criteria.map((c) => ({ key: c.column, ascending: c.ascending }));
+		const sortFields = criteria.map((c) => ({
+			key: c.column,
+			ascending: c.ascending,
+		}));
 		sort.apply({ fields: sortFields, hasHeader, matchCase: false });
 		await ctx.sync();
-		return { sheetName, address, sortedBy: criteria.length, criteria, undoable: true };
+		return {
+			sheetName,
+			address,
+			sortedBy: criteria.length,
+			criteria,
+			undoable: true,
+		};
 	});
 }
 
 async function handleFilterRange(args: unknown): Promise<unknown> {
-	const config = args as { sheetName?: string; address?: string; column?: number; criteria?: Record<string, unknown>; clearFilters?: boolean };
-	const { sheetName = "", address = "", column = 0, criteria, clearFilters = false } = config;
+	const config = args as {
+		sheetName?: string;
+		address?: string;
+		column?: number;
+		criteria?: Record<string, unknown>;
+		clearFilters?: boolean;
+	};
+	const {
+		sheetName = "",
+		address = "",
+		column = 0,
+		criteria,
+		clearFilters = false,
+	} = config;
 	if (!sheetName) return { error: "sheetName is required" };
 	if (!address) return { error: "address is required" };
 
@@ -563,7 +603,10 @@ async function handleFilterRange(args: unknown): Promise<unknown> {
 
 		const filter = range.filter;
 		if (!filter) {
-			return { error: "No autofilter on this range. Apply filter first.", errorCode: "NO_AUTOFILTER" };
+			return {
+				error: "No autofilter on this range. Apply filter first.",
+				errorCode: "NO_AUTOFILTER",
+			};
 		}
 
 		const filterCriteria = criteria || {};
@@ -571,9 +614,15 @@ async function handleFilterRange(args: unknown): Promise<unknown> {
 		const operator = (filterCriteria as any).operator;
 
 		if (operator) {
-			filter.apply({ criteria: [{ filterOn: "custom", operator, values: [String(value)] }], columnIndex: column });
+			filter.apply({
+				criteria: [{ filterOn: "custom", operator, values: [String(value)] }],
+				columnIndex: column,
+			});
 		} else if (value !== undefined) {
-			filter.apply({ criteria: [{ filterOn: "value", values: [String(value)] }], columnIndex: column });
+			filter.apply({
+				criteria: [{ filterOn: "value", values: [String(value)] }],
+				columnIndex: column,
+			});
 		}
 		await ctx.sync();
 		return { sheetName, address, column, filtered: true, undoable: true };
@@ -581,14 +630,35 @@ async function handleFilterRange(args: unknown): Promise<unknown> {
 }
 
 async function handleCreateChart(args: unknown): Promise<unknown> {
-	const config = args as { sheetName?: string; dataRange?: string; chartType?: string; title?: string };
-	const { sheetName = "", dataRange = "", chartType = "Column", title } = config;
+	const config = args as {
+		sheetName?: string;
+		dataRange?: string;
+		chartType?: string;
+		title?: string;
+	};
+	const {
+		sheetName = "",
+		dataRange = "",
+		chartType = "Column",
+		title,
+	} = config;
 	if (!sheetName) return { error: "sheetName is required" };
 	if (!dataRange) return { error: "dataRange is required" };
 
-	const supportedTypes = ["Column", "Bar", "Line", "Pie", "Scatter", "Area", "Doughnut"];
+	const supportedTypes = [
+		"Column",
+		"Bar",
+		"Line",
+		"Pie",
+		"Scatter",
+		"Area",
+		"Doughnut",
+	];
 	if (!supportedTypes.includes(chartType)) {
-		return { error: `Unsupported chart type: ${chartType}. Supported: ${supportedTypes.join(", ")}`, errorCode: "UNSUPPORTED_CHART_TYPE" };
+		return {
+			error: `Unsupported chart type: ${chartType}. Supported: ${supportedTypes.join(", ")}`,
+			errorCode: "UNSUPPORTED_CHART_TYPE",
+		};
 	}
 
 	return runInExcel(async (ctx) => {
@@ -611,7 +681,15 @@ async function handleCreateChart(args: unknown): Promise<unknown> {
 		if (title) chart.title = { text: title };
 		await ctx.sync();
 
-		return { sheetName, dataRange, chartType, title: title || null, chartName: String(chart.name), created: true, undoable: true };
+		return {
+			sheetName,
+			dataRange,
+			chartType,
+			title: title || null,
+			chartName: String(chart.name),
+			created: true,
+			undoable: true,
+		};
 	});
 }
 
@@ -625,9 +703,17 @@ async function handleGetCharts(args: unknown): Promise<unknown> {
 			await ctx.sync();
 		}
 
-		const charts: Array<{ sheetName: string; chartType: string; title: string | null; dataRange: string; position: { top: number; left: number; width: number; height: number } }> = [];
+		const charts: Array<{
+			sheetName: string;
+			chartType: string;
+			title: string | null;
+			dataRange: string;
+			position: { top: number; left: number; width: number; height: number };
+		}> = [];
 
-		const sheets = sheetName ? [ctx.workbook.worksheets.getItem(sheetName)] : (ctx.workbook.worksheets as any).items || [];
+		const sheets = sheetName
+			? [ctx.workbook.worksheets.getItem(sheetName)]
+			: (ctx.workbook.worksheets as any).items || [];
 		for (const ws of sheets) {
 			ws.load("name");
 			ws.charts.load("items");
@@ -641,14 +727,25 @@ async function handleGetCharts(args: unknown): Promise<unknown> {
 				await ctx.sync();
 
 				let chartTitle: string | null = null;
-				try { chart.title.load("text"); await ctx.sync(); chartTitle = chart.title.text || null; } catch { chartTitle = null; }
+				try {
+					chart.title.load("text");
+					await ctx.sync();
+					chartTitle = chart.title.text || null;
+				} catch {
+					chartTitle = null;
+				}
 
 				charts.push({
 					sheetName: String(ws.name),
 					chartType: String(chart.chartType),
 					title: chartTitle,
 					dataRange: String(dataRng.address).split("!").pop() || "",
-					position: { top: chart.top, left: chart.left, width: chart.width, height: chart.height },
+					position: {
+						top: chart.top,
+						left: chart.left,
+						width: chart.width,
+						height: chart.height,
+					},
 				});
 			}
 		}
@@ -658,8 +755,24 @@ async function handleGetCharts(args: unknown): Promise<unknown> {
 }
 
 async function handleFormatRange(args: unknown): Promise<unknown> {
-	const config = args as { sheetName?: string; address?: string; font?: Record<string, unknown>; fill?: Record<string, unknown>; borders?: Record<string, unknown>; alignment?: Record<string, unknown>; numberFormat?: string };
-	const { sheetName = "", address = "", font, fill, borders, alignment, numberFormat } = config;
+	const config = args as {
+		sheetName?: string;
+		address?: string;
+		font?: Record<string, unknown>;
+		fill?: Record<string, unknown>;
+		borders?: Record<string, unknown>;
+		alignment?: Record<string, unknown>;
+		numberFormat?: string;
+	};
+	const {
+		sheetName = "",
+		address = "",
+		font,
+		fill,
+		borders,
+		alignment,
+		numberFormat,
+	} = config;
 	if (!sheetName) return { error: "sheetName is required" };
 	if (!address) return { error: "address is required" };
 
@@ -682,27 +795,64 @@ async function handleFormatRange(args: unknown): Promise<unknown> {
 			const bs = range.format.borders;
 			const style = String(borders.style || "thin");
 			const color = String(borders.color || "black");
-			bs.getItem("EdgeTop").style = style; bs.getItem("EdgeTop").color = color;
-			bs.getItem("EdgeBottom").style = style; bs.getItem("EdgeBottom").color = color;
-			bs.getItem("EdgeLeft").style = style; bs.getItem("EdgeLeft").color = color;
-			bs.getItem("EdgeRight").style = style; bs.getItem("EdgeRight").color = color;
+			bs.getItem("EdgeTop").style = style;
+			bs.getItem("EdgeTop").color = color;
+			bs.getItem("EdgeBottom").style = style;
+			bs.getItem("EdgeBottom").color = color;
+			bs.getItem("EdgeLeft").style = style;
+			bs.getItem("EdgeLeft").color = color;
+			bs.getItem("EdgeRight").style = style;
+			bs.getItem("EdgeRight").color = color;
 		}
 		if (alignment) {
 			const ra = range.format.alignment;
 			if (alignment.horizontal) ra.horizontal = String(alignment.horizontal);
 			if (alignment.vertical) ra.vertical = String(alignment.vertical);
-			if (alignment.wrapText !== undefined) ra.wrapText = Boolean(alignment.wrapText);
+			if (alignment.wrapText !== undefined)
+				ra.wrapText = Boolean(alignment.wrapText);
 		}
 		if (numberFormat) range.numberFormat = [[numberFormat]];
 
 		await ctx.sync();
-		return { sheetName, address, formatted: true, applied: { font: !!font, fill: !!fill, borders: !!borders, alignment: !!alignment, numberFormat: !!numberFormat }, undoable: true };
+		return {
+			sheetName,
+			address,
+			formatted: true,
+			applied: {
+				font: !!font,
+				fill: !!fill,
+				borders: !!borders,
+				alignment: !!alignment,
+				numberFormat: !!numberFormat,
+			},
+			undoable: true,
+		};
 	});
 }
 
 async function handleConditionalFormatting(args: unknown): Promise<unknown> {
-	const config = args as { sheetName?: string; address?: string; ruleType?: string; operator?: string; value?: string; format?: Record<string, unknown>; minColor?: string; maxColor?: string; iconSet?: string };
-	const { sheetName = "", address = "", ruleType = "", operator, value, format, minColor, maxColor, iconSet } = config;
+	const config = args as {
+		sheetName?: string;
+		address?: string;
+		ruleType?: string;
+		operator?: string;
+		value?: string;
+		format?: Record<string, unknown>;
+		minColor?: string;
+		maxColor?: string;
+		iconSet?: string;
+	};
+	const {
+		sheetName = "",
+		address = "",
+		ruleType = "",
+		operator,
+		value,
+		format,
+		minColor,
+		maxColor,
+		iconSet,
+	} = config;
 	if (!sheetName) return { error: "sheetName is required" };
 	if (!address) return { error: "address is required" };
 	if (!ruleType) return { error: "ruleType is required" };
@@ -715,7 +865,10 @@ async function handleConditionalFormatting(args: unknown): Promise<unknown> {
 		if (ruleType === "cellValue") {
 			const rule = cf.add(Excel.ConditionalFormatType.cellValue);
 			rule.cellValue.format.fill.color = String(format?.fillColor || "red");
-			rule.cellValue.rule = { operator: operator || "greaterThan", formula1: value || "0" };
+			rule.cellValue.rule = {
+				operator: operator || "greaterThan",
+				formula1: value || "0",
+			};
 		} else if (ruleType === "dataBar") {
 			const rule = cf.add(Excel.ConditionalFormatType.dataBar);
 			rule.dataBar.lowerBoundType = "Auto";
@@ -730,7 +883,10 @@ async function handleConditionalFormatting(args: unknown): Promise<unknown> {
 			const rule = cf.add(Excel.ConditionalFormatType.iconSet);
 			rule.iconSet.style = iconSet || "3TrafficLights";
 		} else {
-			return { error: `Unknown ruleType: ${ruleType}. Supported: cellValue, dataBar, colorScale, iconSet.`, errorCode: "INVALID_PARAMETER" };
+			return {
+				error: `Unknown ruleType: ${ruleType}. Supported: cellValue, dataBar, colorScale, iconSet.`,
+				errorCode: "INVALID_PARAMETER",
+			};
 		}
 
 		await ctx.sync();
@@ -739,8 +895,22 @@ async function handleConditionalFormatting(args: unknown): Promise<unknown> {
 }
 
 async function handleCreatePivotTable(args: unknown): Promise<unknown> {
-	const config = args as { sourceRange?: string; name?: string; rows?: string[]; columns?: string[]; values?: Array<{ field: string; aggregation: string }>; destinationSheet?: string };
-	const { sourceRange = "", name, rows = [], columns = [], values = [], destinationSheet } = config;
+	const config = args as {
+		sourceRange?: string;
+		name?: string;
+		rows?: string[];
+		columns?: string[];
+		values?: Array<{ field: string; aggregation: string }>;
+		destinationSheet?: string;
+	};
+	const {
+		sourceRange = "",
+		name,
+		rows = [],
+		columns = [],
+		values = [],
+		destinationSheet,
+	} = config;
 	if (!sourceRange) return { error: "sourceRange is required" };
 	if (!rows.length) return { error: "rows must be non-empty" };
 	if (!values.length) return { error: "values must be non-empty" };
@@ -751,7 +921,9 @@ async function handleCreatePivotTable(args: unknown): Promise<unknown> {
 		const srcSheetName = parts.length > 1 ? parts[0] : undefined;
 		const srcAddress = parts.length > 1 ? parts[1] : sourceRange;
 
-		const srcSheet = srcSheetName ? ctx.workbook.worksheets.getItem(srcSheetName) : ctx.workbook.worksheets.getActiveWorksheet();
+		const srcSheet = srcSheetName
+			? ctx.workbook.worksheets.getItem(srcSheetName)
+			: ctx.workbook.worksheets.getActiveWorksheet();
 		const srcRange = srcSheet.getRange(srcAddress);
 
 		// Create destination sheet
@@ -760,7 +932,11 @@ async function handleCreatePivotTable(args: unknown): Promise<unknown> {
 
 		// Create pivot table
 		const pivotTables = destSheet.pivotTables;
-		const pt = pivotTables.add(name || "PivotTable1", srcRange, destSheet.getRange("A1"));
+		const pt = pivotTables.add(
+			name || "PivotTable1",
+			srcRange,
+			destSheet.getRange("A1"),
+		);
 
 		// Add row fields
 		for (const rowField of rows) {
@@ -768,7 +944,7 @@ async function handleCreatePivotTable(args: unknown): Promise<unknown> {
 		}
 
 		// Add column fields
-		for (const colField of (columns || [])) {
+		for (const colField of columns || []) {
 			pt.columnHierarchicalProperties.add(colField);
 		}
 
@@ -778,6 +954,14 @@ async function handleCreatePivotTable(args: unknown): Promise<unknown> {
 		}
 
 		await ctx.sync();
-		return { sourceRange, destinationSheet: destName, rows, columns, values, created: true, undoable: true };
+		return {
+			sourceRange,
+			destinationSheet: destName,
+			rows,
+			columns,
+			values,
+			created: true,
+			undoable: true,
+		};
 	});
 }

@@ -434,7 +434,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         var tools = body.GetProperty("result").GetProperty("tools");
-        Assert.Equal(53, tools.GetArrayLength());
+        Assert.Equal(63, tools.GetArrayLength());
     }
 
     [Fact]

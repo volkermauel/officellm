@@ -588,6 +588,24 @@ public static class McpToolEngine
             }
         },
 
+        // ── Word Structure: Tables ──────────────────────────────
+        new { name = "word_get_tables", description = "Returns all tables in the document with row/column counts and cell text for each table.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["includeCellText"] = new { type = "boolean", description = "Include cell text content. Default: true.", @default = true }, ["maxRows"] = new { type = "number", description = "Max rows to read per table. Default: 50.", @default = 50 } }, required = new[] { "instanceId" } } },
+        new { name = "word_insert_table", description = "Inserts a table at a specified location. Supports header row population. Uses tracked changes.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["rows"] = new { type = "number", description = "Number of rows (excluding header)." }, ["columns"] = new { type = "number", description = "Number of columns." }, ["afterParagraphIndex"] = new { type = "number", description = "Insert after this 0-based paragraph index. Use -1 for end of document.", @default = -1 }, ["headerRow"] = new { type = "array", description = "Optional header row values.", items = new { type = "string" } } }, required = new[] { "instanceId", "rows", "columns" } } },
+        new { name = "word_update_table_cell", description = "Updates a single cell in a table. Uses tracked changes. Coordinates are 0-based.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["tableIndex"] = new { type = "number", description = "0-based table index." }, ["row"] = new { type = "number", description = "0-based row index." }, ["column"] = new { type = "number", description = "0-based column index." }, ["text"] = new { type = "string", description = "New cell text." } }, required = new[] { "instanceId", "tableIndex", "row", "column", "text" } } },
+
+        // ── Word Structure: Headers/Footers ────────────────────
+        new { name = "word_get_headers_footers", description = "Returns header and footer content for each section, including default, first page, and odd/even variants.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sectionIndex"] = new { type = "number", description = "0-based section index. Default: all sections." } }, required = new[] { "instanceId" } } },
+        new { name = "word_set_header_footer", description = "Sets header or footer text for a section. Uses tracked changes.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sectionIndex"] = new { type = "number", description = "0-based section index. Default: 0.", @default = 0 }, ["type"] = new { type = "string", description = "'header' or 'footer'." }, ["variant"] = new { type = "string", description = "'default', 'firstPage', or 'oddEven'. Default: 'default'.", @default = "default" }, ["text"] = new { type = "string", description = "Content text to set." } }, required = new[] { "instanceId", "type", "text" } } },
+
+        // ── Word Structure: Selection & Insert ──────────────────
+        new { name = "word_replace_selection", description = "Replaces the current selection with new text. Uses tracked changes — user accepts/rejects via Review ribbon.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["text"] = new { type = "string", description = "Replacement text." } }, required = new[] { "instanceId", "text" } } },
+        new { name = "word_insert_image", description = "Inserts an inline image at a specified location. Accepts base64-encoded image data (PNG, JPEG, GIF, BMP, SVG). Max 10MB.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["imageBase64"] = new { type = "string", description = "Base64-encoded image data." }, ["afterParagraphIndex"] = new { type = "number", description = "Insert after this paragraph. -1 = end. Default: -1.", @default = -1 }, ["width"] = new { type = "number", description = "Optional width in points." }, ["height"] = new { type = "number", description = "Optional height in points." } }, required = new[] { "instanceId", "imageBase64" } } },
+
+        // ── Word Structure: Styles & Lists ──────────────────────
+        new { name = "word_apply_style", description = "Applies a named style to a paragraph. Validates style exists before applying.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["paragraphIndex"] = new { type = "number", description = "0-based paragraph index." }, ["styleName"] = new { type = "string", description = "Style name (e.g. 'Heading 1', 'Normal', 'Title')." } }, required = new[] { "instanceId", "paragraphIndex", "styleName" } } },
+        new { name = "word_get_sections", description = "Returns document sections with page layout info and header/footer configuration.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." } }, required = new[] { "instanceId" } } },
+        new { name = "word_insert_list", description = "Inserts a bulleted or numbered list at a specified location. Uses tracked changes.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["type"] = new { type = "string", description = "'bulleted' or 'numbered'. Default: 'bulleted'.", @default = "bulleted" }, ["items"] = new { type = "array", description = "List item texts.", items = new { type = "string" } }, ["afterParagraphIndex"] = new { type = "number", description = "Insert after this paragraph. -1 = end. Default: -1.", @default = -1 } }, required = new[] { "instanceId", "items" } } },
+
         // ── Excel Read tools ──────────────────────────────────────
         new
         {
@@ -819,6 +837,18 @@ public static class McpToolEngine
         "word_get_tracked_changes",
         "word_accept_all_changes",
         "word_reject_all_changes",
+
+        // Word Structure
+        "word_get_tables",
+        "word_insert_table",
+        "word_update_table_cell",
+        "word_get_headers_footers",
+        "word_set_header_footer",
+        "word_replace_selection",
+        "word_insert_image",
+        "word_apply_style",
+        "word_get_sections",
+        "word_insert_list",
 
         // Excel
         "excel_get_workbook_map",

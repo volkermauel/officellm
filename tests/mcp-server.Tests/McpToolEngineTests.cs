@@ -10,12 +10,12 @@ public class McpToolEngineTests
 		McpToolEngine.ResetForTesting();
 	}
 
-    public void GetToolDefinitions_Returns53Tools()
+    public void GetToolDefinitions_Returns63Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(53, tools.Length);
+        Assert.Equal(63, tools.Length);
     }
 
     [Fact]
@@ -94,6 +94,18 @@ public class McpToolEngineTests
         Assert.Contains("excel_format_range", names);
         Assert.Contains("excel_apply_conditional_formatting", names);
         Assert.Contains("excel_create_pivottable", names);
+
+        // Word Structure
+        Assert.Contains("word_get_tables", names);
+        Assert.Contains("word_insert_table", names);
+        Assert.Contains("word_update_table_cell", names);
+        Assert.Contains("word_get_headers_footers", names);
+        Assert.Contains("word_set_header_footer", names);
+        Assert.Contains("word_replace_selection", names);
+        Assert.Contains("word_insert_image", names);
+        Assert.Contains("word_apply_style", names);
+        Assert.Contains("word_get_sections", names);
+        Assert.Contains("word_insert_list", names);
     }
 
     [Fact]
