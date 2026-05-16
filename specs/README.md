@@ -9,23 +9,23 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
     │                                │                               │
     │── tools/call ─────────────────►│                               │
     │   { tool, { instanceId?, ... } │                               │
-    │                                │── route to instance ─────────►│
-    │◄── result ─────────────────────│                               │
-    │                                │◄── result ────────────────────│
+    │                                │── push command (SignalR) ────►│
+    │◄── result ─────────────────────│◄── push result (SignalR) ──────│
     │                                │◄── /instances/register ──────│  (on load)
-    │                                │◄── /instances/:id/heartbeat ─│  (every 10s)
-    │                                │►── /instances/:id/commands ──│  (poll every 2s)
-    │                                │◄── /instances/:id/result ────│  (after execution)
+    │                                │◄── SignalR connect ──────────│  (on load)
+    │                                │── /instances/:id/heartbeat ─│  (every 10s, HTTP fallback)
+    │                                │── /instances/:id/commands ──│  (HTTP fallback only)
+    │                                │◄── /instances/:id/result ────│  (HTTP fallback only)
 ```
 
 **Key design decisions:**
 
 - **Central hub**: Single MCP server process, one port (3000)
 - **Unified add-in**: One Office JS Add-in, one manifest — auto-detects host via `Office.onReady(info.host)` and presents host-relevant tools
-- **Add-ins connect TO server**: Office JS Add-ins register on load, poll for commands
+- **SignalR transport**: Commands pushed in real-time via WebSocket. HTTP polling available as fallback
 - **Host-aware tool routing**: Instance registration includes host type (`PowerPoint`, `Word`, `Excel`, `Outlook`); MCP server filters available tools by host
 - **Multiple instances**: Each Office session gets its own registered instance (e.g., `powerpoint_1`, `word_2`)
-- **Transport**: Streamable HTTP + stdio (MCPo compatible) + OpenAPI REST bridge
+- **Transport**: SignalR (WebSocket) + Streamable HTTP fallback + stdio (MCPo compatible) + OpenAPI REST bridge
 
 ## Phases
 
@@ -37,7 +37,11 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 | 3   | [Excel MVP](004-excel-mvp/)           | `004-excel-mvp`      | Workbook map, read/write range, write formula, create table, range limits, formula validation                                |
 | 4   | [Outlook MVP](005-outlook-mvp/)       | `005-outlook-mvp`    | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate      |
 | 5   | [PowerPoint v2](006-powerpoint-v2/)   | `006-powerpoint-v2`  | Full shape properties, image export, table reading, selection context, direct write operations, shape CRUD, slide management |
-
+| 8   | [SignalR Transport](008-signalr-transport/) | `008-signalr-transport` | WebSocket transport upgrade, fix instance ID naming, concurrent commands, HTTP fallback |
+| 9   | [Outlook Graph](009-outlook-graph/)   | `009-outlook-graph`   | Folder listing, email search, calendar events, shared mailboxes, compose email, Graph API via NAA proxy |
+| 10  | [Excel Analysis](010-excel-analysis/) | `010-excel-analysis`  | Sheet management, sort, filter, charts, conditional formatting, cell formatting, pivot tables |
+| 11  | [Word Structure](011-word-structure/) | `011-word-structure`  | Tables CRUD, headers/footers, replace selection, images, styles, sections, lists |
+| 12  | [Cross-Cutting](012-cross-cutting/)   | `012-cross-cutting`   | Unified document context, consistent error codes, document stats, batch operations |
 ## Progression
 
 Each phase is **independently completable** and builds on the shared infrastructure established by earlier phases:
@@ -84,6 +88,30 @@ The instance registration (`POST /instances/register`) includes the `appName` fi
 | `outlook_get_current_item`        | Outlook    | `instanceId?`                                                 |
 | `outlook_summarize_thread`        | Outlook    | `instanceId?`                                                 |
 | `outlook_draft_reply`             | Outlook    | `instanceId?`, `tone`, `keyPoints`                            |
+
+### Planned (Phases 8–12)
+
+| Tool                              | Host       | Phase | Scope |
+| --------------------------------- | ---------- | ----- | ----- |
+| `outlook_list_folders`            | Outlook    | 9     | List mail folders with unread counts |
+| `outlook_list_emails`             | Outlook    | 9     | Paginated email listing in folder |
+| `outlook_search_emails`           | Outlook    | 9     | Full-text search across mailbox |
+| `outlook_get_email`               | Outlook    | 9     | Read specific email by ID |
+| `outlook_list_calendar_events`    | Outlook    | 9     | Upcoming calendar appointments |
+| `outlook_compose_email`           | Outlook    | 9     | Create new email draft (never auto-send) |
+| `outlook_move_email`              | Outlook    | 9     | Move email to folder |
+| `excel_add_sheet`                 | Excel      | 10    | Add/rename/delete worksheets |
+| `excel_sort_range`                | Excel      | 10    | Multi-column sort |
+| `excel_filter_range`              | Excel      | 10    | Autofilter with criteria |
+| `excel_create_chart`              | Excel      | 10    | Create chart from data range |
+| `excel_format_range`              | Excel      | 10    | Font, fill, borders, alignment |
+| `excel_create_pivottable`         | Excel      | 10    | Pivot table from data range |
+| `word_get_tables`                 | Word       | 11    | Read tables with cell content |
+| `word_insert_table`               | Word       | 11    | Create table at location |
+| `word_replace_selection`          | Word       | 11    | Replace current selection (tracked) |
+| `word_get_headers_footers`        | Word       | 11    | Read header/footer content |
+| `word_insert_image`               | Word       | 11    | Insert inline image |
+| `office_get_document_context`     | **All**    | 12    | Unified context for any host |
 
 ## Workflow
 
