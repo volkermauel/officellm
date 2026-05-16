@@ -562,7 +562,7 @@ public static class McpToolEngine
             Outcome = "pending"
         });
 
-        var result = await _commandStore.WaitForResult(commandId, timeoutSeconds: 60);
+        var result = await _commandStore.WaitForResult(commandId, timeoutSeconds: IsImageTool(name) ? 120 : 60);
         return BuildToolResult(result, name, instanceId, inputs);
     }
 
@@ -659,4 +659,7 @@ public static class McpToolEngine
         _commandStore = new CommandStore();
         _auditLog = new AuditLog(Path.Combine(Path.GetTempPath(), $"audit-test-{Guid.NewGuid()}").TrimEnd('/'));
     }
+
+    private static bool IsImageTool(string toolName) =>
+        toolName is "powerpoint_get_slide_image" or "powerpoint_get_shape_image";
 }

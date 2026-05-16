@@ -21,14 +21,23 @@ export class WordMock {
 	private _data: MockDocumentData;
 	private _originalWord: any;
 	private _originalOffice: any;
-	reportResultCalls: Array<{ commandId: string; success: boolean; error?: string; payload?: unknown }> = [];
+	reportResultCalls: Array<{
+		commandId: string;
+		success: boolean;
+		error?: string;
+		payload?: unknown;
+	}> = [];
 
 	constructor(data: MockDocumentData) {
 		this._data = data;
 	}
 
-	get data() { return this._data; }
-	get lastReport() { return this.reportResultCalls.at(-1) ?? null; }
+	get data() {
+		return this._data;
+	}
+	get lastReport() {
+		return this.reportResultCalls.at(-1) ?? null;
+	}
 
 	install() {
 		this._originalWord = (globalThis as any).Word;
@@ -54,11 +63,18 @@ export class WordMock {
 		(globalThis as any).Office = this._originalOffice;
 	}
 
-	mockReportResult = async (commandId: string, success: boolean, error?: string, payload?: unknown) => {
+	mockReportResult = async (
+		commandId: string,
+		success: boolean,
+		error?: string,
+		payload?: unknown,
+	) => {
 		this.reportResultCalls.push({ commandId, success, error, payload });
 	};
 
-	reset() { this.reportResultCalls = []; }
+	reset() {
+		this.reportResultCalls = [];
+	}
 }
 
 // ── Mock Context ────────────────────────────────────────────────
@@ -74,17 +90,23 @@ class WordMockContext {
 		this.document = new MockDocument(this, data);
 	}
 
-	queueLoad(target: any, props: string[]) { this._loads.push({ target, props }); }
-	queueAction(action: () => void) { this._pendingActions.push(action); }
+	queueLoad(target: any, props: string[]) {
+		this._loads.push({ target, props });
+	}
+	queueAction(action: () => void) {
+		this._pendingActions.push(action);
+	}
 
 	load(target: any, props: string) {
-		this._loads.push({ target, props: props.split(",").map(p => p.trim()) });
+		this._loads.push({ target, props: props.split(",").map((p) => p.trim()) });
 	}
 
 	async sync() {
 		for (const a of this._pendingActions) a();
 		this._pendingActions = [];
-		for (const l of this._loads) { if (l.target._populate) l.target._populate(l.props); }
+		for (const l of this._loads) {
+			if (l.target._populate) l.target._populate(l.props);
+		}
 		this._loads = [];
 	}
 }
@@ -123,9 +145,17 @@ class MockBody {
 	insertParagraph(text: string, location: string) {
 		this._ctx.queueAction(() => {
 			if (location === "End") {
-				this._data.paragraphs.push({ text, style: "Normal", outlineLevel: "OutlineLevelBodyText" });
+				this._data.paragraphs.push({
+					text,
+					style: "Normal",
+					outlineLevel: "OutlineLevelBodyText",
+				});
 			} else {
-				this._data.paragraphs.unshift({ text, style: "Normal", outlineLevel: "OutlineLevelBodyText" });
+				this._data.paragraphs.unshift({
+					text,
+					style: "Normal",
+					outlineLevel: "OutlineLevelBodyText",
+				});
 			}
 		});
 	}
@@ -145,14 +175,21 @@ class MockParagraphCollection {
 	constructor(ctx: WordMockContext, data: MockDocumentData) {
 		this._ctx = ctx;
 		this._data = data;
-		this.items = data.paragraphs.map((p, i) => new MockParagraph(ctx, data, p, i));
+		this.items = data.paragraphs.map(
+			(p, i) => new MockParagraph(ctx, data, p, i),
+		);
 	}
 
 	load(props: string) {
-		this._ctx.queueLoad(this, props.split(",").map((p: string) => p.trim()));
+		this._ctx.queueLoad(
+			this,
+			props.split(",").map((p: string) => p.trim()),
+		);
 	}
 
-	_populate(props: string[]) { /* items already populated */ }
+	_populate(props: string[]) {
+		/* items already populated */
+	}
 }
 
 // ── Mock Paragraph ──────────────────────────────────────────────
@@ -164,13 +201,18 @@ class MockParagraph {
 	private _index: number;
 	private _loaded = new Set<string>();
 
-	// Backing fields
+	// Backing fields (populated after sync)
 	private _text = "";
 	private _style = "";
 	private _outlineLevel = "";
 	private _uniqueLocalId = "";
 
-	constructor(ctx: WordMockContext, data: MockDocumentData, para: MockParagraphData, index: number) {
+	constructor(
+		ctx: WordMockContext,
+		data: MockDocumentData,
+		para: MockParagraphData,
+		index: number,
+	) {
 		this._ctx = ctx;
 		this._data = data;
 		this._para = para;
@@ -178,13 +220,21 @@ class MockParagraph {
 		this._uniqueLocalId = para.uniqueLocalId ?? `para_${index}`;
 	}
 
-	get text() { return this._text; }
-	get style() { return this._style; }
-	get outlineLevel() { return this._outlineLevel; }
-	get uniqueLocalId() { return this._uniqueLocalId; }
+	get text() {
+		return this._text;
+	}
+	get style() {
+		return this._style;
+	}
+	get outlineLevel() {
+		return this._outlineLevel;
+	}
+	get uniqueLocalId() {
+		return this._uniqueLocalId;
+	}
 
 	load(propString: string) {
-		const props = propString.split(",").map(p => p.trim());
+		const props = propString.split(",").map((p) => p.trim());
 		for (const p of props) this._loaded.add(p);
 		this._ctx.queueLoad(this, props);
 	}
@@ -192,18 +242,30 @@ class MockParagraph {
 	_populate(props: string[]) {
 		const l = this._loaded;
 		if (l.has("text") || props.includes("text")) this._text = this._para.text;
-		if (l.has("style") || props.includes("style")) this._style = this._para.style ?? "Normal";
-		if (l.has("outlineLevel") || props.includes("outlineLevel")) this._outlineLevel = this._para.outlineLevel ?? "OutlineLevelBodyText";
-		if (l.has("uniqueLocalId") || props.includes("uniqueLocalId")) this._uniqueLocalId = this._para.uniqueLocalId ?? `para_${this._index}`;
+		if (l.has("style") || props.includes("style"))
+			this._style = this._para.style ?? "Normal";
+		if (l.has("outlineLevel") || props.includes("outlineLevel"))
+			this._outlineLevel = this._para.outlineLevel ?? "OutlineLevelBodyText";
+		if (l.has("uniqueLocalId") || props.includes("uniqueLocalId"))
+			this._uniqueLocalId = this._para.uniqueLocalId ?? `para_${this._index}`;
 	}
 
-	getRange(location: string) {
-		return new MockRange(this._ctx, this._para.text);
+	getRange(_location: string) {
+		return new MockRange(
+			this._ctx,
+			this._para.text,
+			(newText) => { this._para.text = newText; },
+			(commentText) => { this._data.comments.push({ text: commentText, paragraphIndex: this._index }); },
+		);
 	}
 
 	insertParagraph(text: string, location: string) {
 		this._ctx.queueAction(() => {
-			const newPara: MockParagraphData = { text, style: "Normal", outlineLevel: "OutlineLevelBodyText" };
+			const newPara: MockParagraphData = {
+				text,
+				style: "Normal",
+				outlineLevel: "OutlineLevelBodyText",
+			};
 			if (location === "After") {
 				this._data.paragraphs.splice(this._index + 1, 0, newPara);
 			} else {
@@ -213,7 +275,14 @@ class MockParagraph {
 	}
 
 	search(searchText: string, options: any) {
-		return new MockSearchResults(this._ctx, this._data, searchText, options, this._para.text);
+		return new MockSearchResults(
+			this._ctx,
+			this._data,
+			searchText,
+			options,
+			this._para.text,
+			(oldText: string, newText: string) => { this._para.text = this._para.text.replace(oldText, newText); }, // propagate replace to paragraph data
+		);
 	}
 
 	delete() {
@@ -238,13 +307,20 @@ class MockSelection {
 		this.paragraphs = new MockSelectionParagraphs(ctx, data);
 	}
 
-	get text() { return this._text; }
-
-	load(props: string) {
-		this._ctx.queueLoad(this, props.split(",").map(p => p.trim()));
+	get text() {
+		return this._text;
 	}
 
-	_populate() { /* text already set */ }
+	load(props: string) {
+		this._ctx.queueLoad(
+			this,
+			props.split(",").map((p) => p.trim()),
+		);
+	}
+
+	_populate() {
+		/* text already set */
+	}
 
 	insertComment(commentText: string) {
 		this._ctx.queueAction(() => {
@@ -262,7 +338,9 @@ class MockSelectionParagraphs {
 		this._ctx = ctx;
 		this._data = data;
 		// Return all paragraphs as context (simplified)
-		this.items = data.paragraphs.map((p, i) => new MockParagraph(ctx, data, p, i));
+		this.items = data.paragraphs.map(
+			(p, i) => new MockParagraph(ctx, data, p, i),
+		);
 	}
 
 	load(props: string) {
@@ -283,7 +361,14 @@ class MockSearchResults {
 	private _scopeText?: string;
 	items: MockRange[];
 
-	constructor(ctx: WordMockContext, data: MockDocumentData, searchText: string, options: any, scopeText?: string) {
+	constructor(
+		ctx: WordMockContext,
+		data: MockDocumentData,
+		searchText: string,
+		options: any,
+		scopeText?: string,
+		onReplace?: (oldText: string, newText: string) => void,
+	) {
 		this._ctx = ctx;
 		this._data = data;
 		this._searchText = searchText;
@@ -292,7 +377,7 @@ class MockSearchResults {
 
 		// Find matches
 		const matchCase = options?.matchCase ?? false;
-		const scope = scopeText ?? data.paragraphs.map(p => p.text).join("\n");
+		const scope = scopeText ?? data.paragraphs.map((p) => p.text).join("\n");
 		const searchIn = matchCase ? scope : scope.toLowerCase();
 		const needle = matchCase ? searchText : searchText.toLowerCase();
 
@@ -301,7 +386,14 @@ class MockSearchResults {
 		while (true) {
 			const idx = searchIn.indexOf(needle, pos);
 			if (idx === -1) break;
-			this.items.push(new MockRange(ctx, scope.substring(idx, idx + searchText.length)));
+			this.items.push(
+				new MockRange(
+					ctx,
+					scope.substring(idx, idx + searchText.length),
+					onReplace,
+					undefined, // no comment callback for search results
+				),
+			);
 			pos = idx + 1;
 		}
 	}
@@ -318,29 +410,37 @@ class MockSearchResults {
 class MockRange {
 	private _ctx: WordMockContext;
 	private _text: string;
+	private _onReplace?: (oldText: string, newText: string) => void;
+	private _onComment?: (text: string) => void;
 
-	constructor(ctx: WordMockContext, text: string) {
+	constructor(ctx: WordMockContext, text: string, onReplace?: (oldText: string, newText: string) => void, onComment?: (text: string) => void) {
 		this._ctx = ctx;
 		this._text = text;
+		this._onReplace = onReplace;
+		this._onComment = onComment;
 	}
 
-	get text() { return this._text; }
+	get text() {
+		return this._text;
+	}
 
-	load(props: string) {
+	load(_props: string) {
 		// Already populated
 	}
 
 	insertText(text: string, location: string) {
+		const oldText = this._text;
 		this._ctx.queueAction(() => {
 			if (location === "Replace") {
 				this._text = text;
+				if (this._onReplace) this._onReplace(oldText, text);
 			}
 		});
 	}
 
 	insertComment(commentText: string) {
 		this._ctx.queueAction(() => {
-			// Comments are tracked on the mock data
+			if (this._onComment) this._onComment(commentText);
 		});
 	}
 }

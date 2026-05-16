@@ -112,14 +112,27 @@ export async function reportResult(
 	if (error) body.error = error;
 	if (payload) body.payload = payload;
 
-	try {
-		await fetch(`${MCP_SERVER_URL}/instances/${instanceId}/result`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-		});
-	} catch (error) {
-		console.warn("Result report failed:", error);
+	const url = `${MCP_SERVER_URL}/instances/${instanceId}/result`;
+	const MAX_RETRIES = 3;
+
+	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+		try {
+			const response = await fetch(url, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (response.ok) return;
+			if (attempt === MAX_RETRIES) {
+				console.warn(`Result report failed: HTTP ${response.status} after ${MAX_RETRIES} attempts`);
+			}
+		} catch (err) {
+			if (attempt === MAX_RETRIES) {
+				console.warn(`Result report failed after ${MAX_RETRIES} attempts:`, err);
+			} else {
+				await new Promise((r) => setTimeout(r, 500 * attempt));
+			}
+		}
 	}
 }
 

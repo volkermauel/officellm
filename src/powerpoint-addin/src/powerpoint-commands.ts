@@ -147,7 +147,7 @@ function safeNum(val: any, fallback = 0): number {
 
 // ── Read tools ──────────────────────────────────────────────────
 
-async function handleGetDeckOutline(args: unknown): Promise<unknown> {
+async function handleGetDeckOutline(_args: unknown): Promise<unknown> {
 	return runInPowerPoint(async (ctx) => {
 		const pres = ctx.presentation;
 		pres.load("slides");
@@ -451,23 +451,7 @@ async function handleGetTable(args: unknown): Promise<unknown> {
 		const rows = table.rowCount;
 		const cols = table.columnCount;
 
-		// Read all cells
-		const cells: string[][] = [];
-		for (let r = 0; r < rows; r++) {
-			const row: string[] = [];
-			for (let c = 0; c < cols; c++) {
-				const cell = table.getCell(r, c);
-				const tf = cell.textFrame;
-				ctx.load(tf, "textRange/text");
-				row.push(""); // placeholder
-				// Store for later reading
-				(cell as any).__row = r;
-				(cell as any).__col = c;
-			}
-			cells.push(row);
-		}
-
-		// Alternative approach: load cell texts individually
+		// Read all cells in a single sync
 		const cellTexts: any[] = [];
 		for (let r = 0; r < rows; r++) {
 			for (let c = 0; c < cols; c++) {
@@ -480,12 +464,15 @@ async function handleGetTable(args: unknown): Promise<unknown> {
 		await ctx.sync();
 
 		// Fill in the cells array
+		const cells: string[][] = [];
 		let idx = 0;
 		for (let r = 0; r < rows; r++) {
+			const row: string[] = [];
 			for (let c = 0; c < cols; c++) {
 				const tf = cellTexts[idx++];
-				cells[r][c] = safeStr(tf.textRange?.text);
+				row.push(safeStr(tf.textRange?.text));
 			}
+			cells.push(row);
 		}
 
 		return {
@@ -608,14 +595,10 @@ async function handleGetSpeakerNotes(args: unknown): Promise<unknown> {
 			}
 
 			const slide = pres.slides.items[idx];
-			try {
-				const notesSlide = slide.getNotesSlideOrNullObject();
-				const tf = notesSlide.textFrame;
-				ctx.load(tf, "isNullObject,textRange/text");
-				notesTfs.push(tf);
-			} catch {
-				notesTfs.push(null);
-			}
+			const notesSlide = slide.getNotesSlideOrNullObject();
+			const tf = notesSlide.textFrame;
+			ctx.load(tf, "isNullObject,textRange/text");
+			notesTfs.push(tf);
 		}
 		await ctx.sync();
 
@@ -810,11 +793,16 @@ async function handleUpdateSpeakerNotes(args: unknown): Promise<unknown> {
 		}
 
 		const slide = pres.slides.items[slideIndex];
-		const notesSlide = slide.getNotesSlide();
-		notesSlide.load("textFrame");
+		const notesSlide = slide.getNotesSlideOrNullObject();
+		const tf = notesSlide.textFrame;
+		ctx.load(tf, "isNullObject,textRange/text");
 		await ctx.sync();
 
-		notesSlide.textFrame.textRange.text = notes;
+		if (tf.isNullObject) {
+			return { error: `Slide ${slideIndex} does not have a notes pane` };
+		}
+
+		tf.textRange.text = notes;
 		await ctx.sync();
 
 		return { slideIndex, newNotes: notes };

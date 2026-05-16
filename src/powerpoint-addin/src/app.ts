@@ -10,29 +10,31 @@ import {
 	startHeartbeat,
 	pollForCommands,
 	getOfficeState,
-	MCP_SERVER_URL,
 } from "./communication";
 import { processCommand as processPptCommand } from "./powerpoint-commands";
 import { processCommand as processWordCommand } from "./word-commands";
 
 // --- Host-aware command dispatch ---
-const currentHost: string = "PowerPoint";
+const HOST_DISPATCH: Record<string, typeof processPptCommand> = {
+	powerpoint_: processPptCommand,
+	word_: processWordCommand,
+};
 
-function processCommand(commandId: string, commandName: string, args: unknown): Promise<unknown> {
-	if (commandName.startsWith("word_")) {
-		return processWordCommand(commandId, commandName, args);
+function processCommand(
+	commandId: string,
+	commandName: string,
+	args: unknown,
+): Promise<unknown> {
+	for (const [prefix, handler] of Object.entries(HOST_DISPATCH)) {
+		if (commandName.startsWith(prefix)) {
+			return handler(commandId, commandName, args);
+		}
 	}
-	return processPptCommand(commandId, commandName, args);
+	return Promise.resolve({ error: `Unknown host for command: ${commandName}` });
 }
 
 // --- State ---
 let instanceId: string | null = null;
-let pendingConfirmation: {
-	commandId: string;
-	toolName: string;
-	confirmationToken: string;
-	diffPreview: unknown;
-} | null = null;
 
 // --- Initialization ---
 let isInitialized = false;
@@ -87,76 +89,7 @@ async function initWithMcp(): Promise<void> {
 	}
 }
 
-// --- Diff Preview & Confirmation ---
-
-interface DiffHunk {
-	oldStart: number;
-	oldLines: number;
-	newStart: number;
-	newLines: number;
-	lines: string[];
-}
-
-interface DiffPreview {
-	toolName: string;
-	diff: {
-		paths: Array<{
-			path: string;
-			hunks: DiffHunk[];
-		}>;
-	};
-}
-
-function showDiffPreview(diffData: unknown): void {
-	const diffSection = document.getElementById("diffSection");
-	const beforeContent = document.getElementById("diffBeforeContent");
-	const afterContent = document.getElementById("diffAfterContent");
-
-	if (!diffSection || !beforeContent || !afterContent) return;
-
-	// Parse diff data
-	const diff = diffData as DiffPreview;
-	let beforeText = "";
-	let afterText = "";
-
-	if (diff.diff && diff.diff.paths) {
-		for (const pathEntry of diff.diff.paths) {
-			for (const hunk of pathEntry.hunks) {
-				for (const line of hunk.lines) {
-					if (line.startsWith("-")) {
-						beforeText += line + "\n";
-					} else if (line.startsWith("+")) {
-						afterText += line + "\n";
-					} else if (!line.startsWith("@@")) {
-						beforeText += line + "\n";
-						afterText += line + "\n";
-					}
-				}
-			}
-		}
-	}
-
-	beforeContent.textContent = beforeText || "(no changes)";
-	afterContent.textContent = afterText || "(no changes)";
-
-	diffSection.classList.add("active");
-	addLogEntry(`Diff preview shown for ${diff.toolName}`);
-}
-
-function hideDiffPreview(): void {
-	const diffSection = document.getElementById("diffSection");
-	if (diffSection) diffSection.classList.remove("active");
-}
-
-function showConfirmationPending(): void {
-	const el = document.getElementById("confirmationPending");
-	if (el) el.classList.add("active");
-}
-
-function hideConfirmationPending(): void {
-	const el = document.getElementById("confirmationPending");
-	if (el) el.classList.remove("active");
-}
+// --- Diff Preview & Confirmation (removed) ---
 
 // --- UI Updates ---
 
@@ -255,96 +188,16 @@ async function refreshContext(): Promise<void> {
 	}
 }
 
-// --- Confirmation Actions ---
-
-async function approveChange(): Promise<void> {
-	if (!pendingConfirmation || !instanceId) return;
-
-	try {
-		await fetch(`${MCP_SERVER_URL}/instances/${instanceId}/confirm`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				commandId: pendingConfirmation.commandId,
-				confirmationToken: pendingConfirmation.confirmationToken,
-				approved: true,
-			}),
-		});
-		addLogEntry(`Change approved: ${pendingConfirmation.toolName}`);
-	} catch (error) {
-		addLogEntry(
-			`Approval failed: ${error instanceof Error ? error.message : String(error)}`,
-		);
-	} finally {
-		hideDiffPreview();
-		hideConfirmationPending();
-		pendingConfirmation = null;
-	}
-}
-
-async function rejectChange(): Promise<void> {
-	if (!pendingConfirmation || !instanceId) return;
-
-	try {
-		await fetch(`${MCP_SERVER_URL}/instances/${instanceId}/confirm`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				commandId: pendingConfirmation.commandId,
-				confirmationToken: pendingConfirmation.confirmationToken,
-				approved: false,
-			}),
-		});
-		addLogEntry(`Change rejected: ${pendingConfirmation.toolName}`);
-	} catch (error) {
-		addLogEntry(
-			`Rejection failed: ${error instanceof Error ? error.message : String(error)}`,
-		);
-	} finally {
-		hideDiffPreview();
-		hideConfirmationPending();
-		pendingConfirmation = null;
-	}
-}
-
-async function sendToLLM(): Promise<void> {
-	addLogEntry("Sending context to LLM via MCP...");
-
-	try {
-		if (!instanceId) throw new Error("Not registered");
-		const response = await fetch(`${MCP_SERVER_URL}/mcp`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				jsonrpc: "2.0",
-				id: Date.now(),
-				method: "tools/call",
-				params: { name: "office_get_active_apps", arguments: {} },
-			}),
-		});
-		if (!response.ok) throw new Error(`HTTP ${response.status}`);
-		addLogEntry("Context sent to LLM successfully");
-	} catch (error) {
-		addLogEntry(
-			`Failed to send: ${error instanceof Error ? error.message : String(error)}`,
-		);
-	}
-}
+// --- Actions ---
 
 // --- Expose functions for HTML onclick handlers ---
 declare global {
 	interface Window {
 		refreshContext: () => Promise<void>;
-		sendToLLM: () => Promise<void>;
-		approveChange: () => Promise<void>;
-		rejectChange: () => Promise<void>;
 	}
 }
 
 window.refreshContext = refreshContext;
-window.sendToLLM = sendToLLM;
-window.approveChange = approveChange;
-window.rejectChange = rejectChange;
 
 // --- Start ---
 

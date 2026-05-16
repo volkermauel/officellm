@@ -225,7 +225,8 @@ async function handleSearch(args: unknown): Promise<unknown> {
 		searchResults.load("items");
 		await ctx.sync();
 
-		const results: Array<{ index: number; text: string; matchText: string }> = [];
+		const results: Array<{ index: number; text: string; matchText: string }> =
+			[];
 
 		// Load parent paragraphs for context
 		for (let i = 0; i < searchResults.items.length; i++) {
@@ -254,7 +255,11 @@ async function handleSearch(args: unknown): Promise<unknown> {
 // ── Write tools ─────────────────────────────────────────────────
 
 async function handleReplaceText(args: unknown): Promise<unknown> {
-	const config = args as { paragraphIndex?: number; oldText?: string; newText?: string };
+	const config = args as {
+		paragraphIndex?: number;
+		oldText?: string;
+		newText?: string;
+	};
 	const { paragraphIndex = 0, oldText = "", newText = "" } = config;
 
 	return runInWord(async (ctx) => {
@@ -263,7 +268,9 @@ async function handleReplaceText(args: unknown): Promise<unknown> {
 		await ctx.sync();
 
 		if (paragraphIndex < 0 || paragraphIndex >= paragraphs.items.length) {
-			return { error: `Paragraph index ${paragraphIndex} out of range (0-${paragraphs.items.length - 1})` };
+			return {
+				error: `Paragraph index ${paragraphIndex} out of range (0-${paragraphs.items.length - 1})`,
+			};
 		}
 
 		const paragraph = paragraphs.items[paragraphIndex];
@@ -272,7 +279,9 @@ async function handleReplaceText(args: unknown): Promise<unknown> {
 
 		const currentText = String(paragraph.text || "");
 		if (!currentText.includes(oldText)) {
-			return { error: `Text '${oldText}' not found in paragraph ${paragraphIndex}` };
+			return {
+				error: `Text '${oldText}' not found in paragraph ${paragraphIndex}`,
+			};
 		}
 
 		// Use search within the paragraph to do targeted replace
