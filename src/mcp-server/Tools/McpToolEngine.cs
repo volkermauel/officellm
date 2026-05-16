@@ -797,7 +797,16 @@ public static class McpToolEngine
                 },
                 required = new[] { "instanceId", "confirmationToken" }
             }
-        }
+        },
+
+        // ── Outlook Extended (Office.js only, no Graph) ──────────
+        new { name = "outlook_get_user_profile", description = "Returns the current user's profile: display name, email address, and timezone.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." } }, required = new[] { "instanceId" } } },
+        new { name = "outlook_get_master_categories", description = "Returns the mailbox's master category list with names and colors.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." } }, required = new[] { "instanceId" } } },
+        new { name = "outlook_create_category", description = "Adds a new category to the mailbox's master list.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["name"] = new { type = "string", description = "Category name." }, ["color"] = new { type = "string", description = "Color preset name (e.g. 'preset0'-'preset25'). Default: 'preset0'.", @default = "preset0" } }, required = new[] { "instanceId", "name" } } },
+        new { name = "outlook_remove_categories", description = "Removes categories from the current item.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["categories"] = new { type = "array", description = "Category names to remove.", items = new { type = "string" } } }, required = new[] { "instanceId", "categories" } } },
+        new { name = "outlook_display_new_message", description = "Opens a new message compose form in Outlook. User must review and send manually. NEVER auto-sends.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["to"] = new { type = "array", description = "Recipient email addresses.", items = new { type = "string" } }, ["cc"] = new { type = "array", description = "CC email addresses.", items = new { type = "string" } }, ["bcc"] = new { type = "array", description = "BCC email addresses.", items = new { type = "string" } }, ["subject"] = new { type = "string", description = "Email subject." }, ["body"] = new { type = "string", description = "Email body text." } }, required = new[] { "instanceId" } } },
+        new { name = "outlook_display_new_appointment", description = "Opens a new appointment form in Outlook. User must save manually.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["subject"] = new { type = "string", description = "Appointment subject." }, ["location"] = new { type = "string", description = "Location." }, ["start"] = new { type = "string", description = "Start time (ISO 8601)." }, ["end"] = new { type = "string", description = "End time (ISO 8601)." }, ["requiredAttendees"] = new { type = "array", description = "Required attendee emails.", items = new { type = "string" } }, ["optionalAttendees"] = new { type = "array", description = "Optional attendee emails.", items = new { type = "string" } } }, required = new[] { "instanceId" } } },
+        new { name = "outlook_get_attachments", description = "Returns detailed attachment info for the current item: name, size, type, ID, inline status.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." } }, required = new[] { "instanceId" } } }
     ];
 
     /// <summary>
@@ -875,7 +884,17 @@ public static class McpToolEngine
         "outlook_draft_reply",
         "outlook_apply_category",
         "outlook_send_message",
+
+        // Outlook Extended (Office.js)
+        "outlook_get_user_profile",
+        "outlook_get_master_categories",
+        "outlook_create_category",
+        "outlook_remove_categories",
+        "outlook_display_new_message",
+        "outlook_display_new_appointment",
+        "outlook_get_attachments",
     };
+
 
     /// <summary>
     /// Executes an MCP tool call. Routes to the appropriate add-in instance.

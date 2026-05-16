@@ -10,12 +10,12 @@ public class McpToolEngineTests
 		McpToolEngine.ResetForTesting();
 	}
 
-    public void GetToolDefinitions_Returns63Tools()
+    public void GetToolDefinitions_Returns70Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(63, tools.Length);
+        Assert.Equal(70, tools.Length);
     }
 
     [Fact]
@@ -106,6 +106,15 @@ public class McpToolEngineTests
         Assert.Contains("word_apply_style", names);
         Assert.Contains("word_get_sections", names);
         Assert.Contains("word_insert_list", names);
+
+        // Outlook Extended
+        Assert.Contains("outlook_get_user_profile", names);
+        Assert.Contains("outlook_get_master_categories", names);
+        Assert.Contains("outlook_create_category", names);
+        Assert.Contains("outlook_remove_categories", names);
+        Assert.Contains("outlook_display_new_message", names);
+        Assert.Contains("outlook_display_new_appointment", names);
+        Assert.Contains("outlook_get_attachments", names);
     }
 
     [Fact]

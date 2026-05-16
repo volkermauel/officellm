@@ -133,7 +133,7 @@ When working with the Word JavaScript API in the add-in:
 - **`getTextFrameOrNullObject` equivalent** — Word has no direct equivalent. Use `range.getHtml()` or `range.getText()` to read content. For null-safe patterns, check `range.isNullObject` after `context.sync()`.
 - **Range-based operations** — Word operates on `Range` objects. Get the current selection via `context.document.getSelection()`, then manipulate it as a range.
 
-### Tool Inventory (63 tools)
+### Tool Inventory (70 tools)
 
 | #   | Tool Name                            | Host       | Category        |
 | --- | ------------------------------------ | ---------- | --------------- |
@@ -200,6 +200,13 @@ When working with the Word JavaScript API in the add-in:
 | 61  | `word_apply_style`                   | Word       | Write           |
 | 62  | `word_get_sections`                  | Word       | Read            |
 | 63  | `word_insert_list`                   | Word       | Write (tracked) |
+| 64  | `outlook_get_user_profile`           | Outlook    | Read            |
+| 65  | `outlook_get_master_categories`       | Outlook    | Read            |
+| 66  | `outlook_create_category`             | Outlook    | Write           |
+| 67  | `outlook_remove_categories`           | Outlook    | Write           |
+| 68  | `outlook_display_new_message`         | Outlook    | Write (gated)   |
+| 69  | `outlook_display_new_appointment`     | Outlook    | Write (gated)   |
+| 70  | `outlook_get_attachments`             | Outlook    | Read            |
 
 **Mutation modes by host**:
 

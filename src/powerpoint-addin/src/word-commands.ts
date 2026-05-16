@@ -481,7 +481,12 @@ async function handleGetTables(args: unknown): Promise<unknown> {
 		tables.load("items");
 		await ctx.sync();
 
-		const result: Array<{ index: number; rowCount: number; columnCount: number; cells?: string[][] }> = [];
+		const result: Array<{
+			index: number;
+			rowCount: number;
+			columnCount: number;
+			cells?: string[][];
+		}> = [];
 		for (let i = 0; i < tables.items.length; i++) {
 			const tbl = tables.items[i];
 			tbl.load("rowCount,columnCount");
@@ -504,7 +509,9 @@ async function handleGetTables(args: unknown): Promise<unknown> {
 							cell.value.load("text");
 							await ctx.sync();
 							rowCells.push(String((cell.value as any).text || ""));
-						} catch { rowCells.push("[error]"); }
+						} catch {
+							rowCells.push("[error]");
+						}
 					}
 					cells.push(rowCells);
 				}
@@ -517,12 +524,19 @@ async function handleGetTables(args: unknown): Promise<unknown> {
 }
 
 async function handleInsertTable(args: unknown): Promise<unknown> {
-	const config = args as { rows?: number; columns?: number; afterParagraphIndex?: number; headerRow?: string[] };
+	const config = args as {
+		rows?: number;
+		columns?: number;
+		afterParagraphIndex?: number;
+		headerRow?: string[];
+	};
 	const { rows = 1, columns = 2, afterParagraphIndex = -1, headerRow } = config;
 
 	return runInWord(async (ctx) => {
 		const originalMode = ctx.document.changeTrackingMode;
-		ctx.document.changeTrackingMode = (Word as any).ChangeTrackingMode.trackMineOnly;
+		ctx.document.changeTrackingMode = (
+			Word as any
+		).ChangeTrackingMode.trackMineOnly;
 
 		const body = ctx.document.body;
 		let insertRange: any;
@@ -540,23 +554,41 @@ async function handleInsertTable(args: unknown): Promise<unknown> {
 			}
 		}
 
-		insertRange.insertTable(rows + (headerRow ? 1 : 0), columns, (Word as any).InsertLocation.after, headerRow || undefined);
+		insertRange.insertTable(
+			rows + (headerRow ? 1 : 0),
+			columns,
+			(Word as any).InsertLocation.after,
+			headerRow || undefined,
+		);
 		await ctx.sync();
 
 		ctx.document.changeTrackingMode = originalMode;
 		await ctx.sync();
 
-		return { rows, columns, afterParagraphIndex, inserted: true, tracked: true };
+		return {
+			rows,
+			columns,
+			afterParagraphIndex,
+			inserted: true,
+			tracked: true,
+		};
 	});
 }
 
 async function handleUpdateTableCell(args: unknown): Promise<unknown> {
-	const config = args as { tableIndex?: number; row?: number; column?: number; text?: string };
+	const config = args as {
+		tableIndex?: number;
+		row?: number;
+		column?: number;
+		text?: string;
+	};
 	const { tableIndex = 0, row = 0, column = 0, text = "" } = config;
 
 	return runInWord(async (ctx) => {
 		const originalMode = ctx.document.changeTrackingMode;
-		ctx.document.changeTrackingMode = (Word as any).ChangeTrackingMode.trackMineOnly;
+		ctx.document.changeTrackingMode = (
+			Word as any
+		).ChangeTrackingMode.trackMineOnly;
 
 		const tables = ctx.document.body.tables;
 		tables.load("items");
@@ -565,7 +597,10 @@ async function handleUpdateTableCell(args: unknown): Promise<unknown> {
 		if (tableIndex >= tables.items.length) {
 			ctx.document.changeTrackingMode = originalMode;
 			await ctx.sync();
-			return { error: `Table index ${tableIndex} out of bounds. Document has ${tables.items.length} tables.`, errorCode: "CELL_OUT_OF_BOUNDS" };
+			return {
+				error: `Table index ${tableIndex} out of bounds. Document has ${tables.items.length} tables.`,
+				errorCode: "CELL_OUT_OF_BOUNDS",
+			};
 		}
 
 		const tbl = tables.items[tableIndex];
@@ -575,7 +610,11 @@ async function handleUpdateTableCell(args: unknown): Promise<unknown> {
 		if (row >= tbl.rowCount || column >= tbl.columnCount) {
 			ctx.document.changeTrackingMode = originalMode;
 			await ctx.sync();
-			return { error: `Cell (${row},${column}) out of bounds. Table is ${tbl.rowCount}x${tbl.columnCount}.`, errorCode: "CELL_OUT_OF_BOUNDS", details: { rowCount: tbl.rowCount, columnCount: tbl.columnCount } };
+			return {
+				error: `Cell (${row},${column}) out of bounds. Table is ${tbl.rowCount}x${tbl.columnCount}.`,
+				errorCode: "CELL_OUT_OF_BOUNDS",
+				details: { rowCount: tbl.rowCount, columnCount: tbl.columnCount },
+			};
 		}
 
 		const cell = tbl.getCell(row, column);
@@ -600,8 +639,15 @@ async function handleGetHeadersFooters(args: unknown): Promise<unknown> {
 		sections.load("items");
 		await ctx.sync();
 
-		const targetSections = sectionIndex !== undefined ? [sections.items[sectionIndex]] : sections.items;
-		const result: Array<{ sectionIndex: number; header?: string; footer?: string }> = [];
+		const targetSections =
+			sectionIndex !== undefined
+				? [sections.items[sectionIndex]]
+				: sections.items;
+		const result: Array<{
+			sectionIndex: number;
+			header?: string;
+			footer?: string;
+		}> = [];
 
 		for (let i = 0; i < targetSections.length; i++) {
 			const sec = targetSections[i];
@@ -612,14 +658,18 @@ async function handleGetHeadersFooters(args: unknown): Promise<unknown> {
 				header.load("text");
 				await ctx.sync();
 				entry.header = String(header.text || "");
-			} catch { entry.header = ""; }
+			} catch {
+				entry.header = "";
+			}
 
 			try {
 				const footer = sec.getFooter("Default");
 				footer.load("text");
 				await ctx.sync();
 				entry.footer = String(footer.text || "");
-			} catch { entry.footer = ""; }
+			} catch {
+				entry.footer = "";
+			}
 
 			result.push(entry);
 		}
@@ -628,12 +678,24 @@ async function handleGetHeadersFooters(args: unknown): Promise<unknown> {
 }
 
 async function handleSetHeaderFooter(args: unknown): Promise<unknown> {
-	const config = args as { sectionIndex?: number; type?: string; variant?: string; text?: string };
-	const { sectionIndex = 0, type = "header", variant = "default", text = "" } = config;
+	const config = args as {
+		sectionIndex?: number;
+		type?: string;
+		variant?: string;
+		text?: string;
+	};
+	const {
+		sectionIndex = 0,
+		type = "header",
+		variant = "default",
+		text = "",
+	} = config;
 
 	return runInWord(async (ctx) => {
 		const originalMode = ctx.document.changeTrackingMode;
-		ctx.document.changeTrackingMode = (Word as any).ChangeTrackingMode.trackMineOnly;
+		ctx.document.changeTrackingMode = (
+			Word as any
+		).ChangeTrackingMode.trackMineOnly;
 
 		const sections = ctx.document.sections;
 		sections.load("items");
@@ -642,11 +704,17 @@ async function handleSetHeaderFooter(args: unknown): Promise<unknown> {
 		if (sectionIndex >= sections.items.length) {
 			ctx.document.changeTrackingMode = originalMode;
 			await ctx.sync();
-			return { error: `Section ${sectionIndex} not found. Document has ${sections.items.length} sections.`, errorCode: "INVALID_PARAMETER" };
+			return {
+				error: `Section ${sectionIndex} not found. Document has ${sections.items.length} sections.`,
+				errorCode: "INVALID_PARAMETER",
+			};
 		}
 
 		const sec = sections.items[sectionIndex];
-		const bodyObj = type === "footer" ? sec.getFooter(variant === "firstPage" ? "FirstPage" : "Default") : sec.getHeader(variant === "firstPage" ? "FirstPage" : "Default");
+		const bodyObj =
+			type === "footer"
+				? sec.getFooter(variant === "firstPage" ? "FirstPage" : "Default")
+				: sec.getHeader(variant === "firstPage" ? "FirstPage" : "Default");
 		bodyObj.insertText(text, (Word as any).InsertLocation.replace);
 		await ctx.sync();
 
@@ -669,12 +737,17 @@ async function handleReplaceSelection(args: unknown): Promise<unknown> {
 		await ctx.sync();
 
 		if (!selection.text || selection.text.trim() === "") {
-			return { error: "No text selected. Select text first.", errorCode: "EMPTY_SELECTION" };
+			return {
+				error: "No text selected. Select text first.",
+				errorCode: "EMPTY_SELECTION",
+			};
 		}
 
 		const originalText = selection.text;
 		const originalMode = ctx.document.changeTrackingMode;
-		ctx.document.changeTrackingMode = (Word as any).ChangeTrackingMode.trackMineOnly;
+		ctx.document.changeTrackingMode = (
+			Word as any
+		).ChangeTrackingMode.trackMineOnly;
 
 		selection.insertText(text, (Word as any).InsertLocation.replace);
 		await ctx.sync();
@@ -687,15 +760,24 @@ async function handleReplaceSelection(args: unknown): Promise<unknown> {
 }
 
 async function handleInsertImage(args: unknown): Promise<unknown> {
-	const config = args as { imageBase64?: string; afterParagraphIndex?: number; width?: number; height?: number };
+	const config = args as {
+		imageBase64?: string;
+		afterParagraphIndex?: number;
+		width?: number;
+		height?: number;
+	};
 	const { imageBase64 = "", afterParagraphIndex = -1, width, height } = config;
 
-	if (!imageBase64) return { error: "imageBase64 is required", errorCode: "INVALID_PARAMETER" };
+	if (!imageBase64)
+		return { error: "imageBase64 is required", errorCode: "INVALID_PARAMETER" };
 
 	// Size check: 10MB max
 	const sizeBytes = Math.ceil((imageBase64.length * 3) / 4);
 	if (sizeBytes > 10 * 1024 * 1024) {
-		return { error: `Image too large: ${(sizeBytes / 1024 / 1024).toFixed(1)}MB. Max: 10MB.`, errorCode: "IMAGE_TOO_LARGE" };
+		return {
+			error: `Image too large: ${(sizeBytes / 1024 / 1024).toFixed(1)}MB. Max: 10MB.`,
+			errorCode: "IMAGE_TOO_LARGE",
+		};
 	}
 
 	return runInWord(async (ctx) => {
@@ -708,15 +790,26 @@ async function handleInsertImage(args: unknown): Promise<unknown> {
 			const paras = body.paragraphs;
 			paras.load("items");
 			await ctx.sync();
-			insertRange = paras.items[Math.min(afterParagraphIndex, paras.items.length - 1)].getRange("After");
+			insertRange =
+				paras.items[
+					Math.min(afterParagraphIndex, paras.items.length - 1)
+				].getRange("After");
 		}
 
-		const image = insertRange.insertInlinePictureFromBase64(imageBase64, (Word as any).InsertLocation.after);
+		const image = insertRange.insertInlinePictureFromBase64(
+			imageBase64,
+			(Word as any).InsertLocation.after,
+		);
 		if (width) image.width = width;
 		if (height) image.height = height;
 		await ctx.sync();
 
-		return { afterParagraphIndex, inserted: true, width: image.width, height: image.height };
+		return {
+			afterParagraphIndex,
+			inserted: true,
+			width: image.width,
+			height: image.height,
+		};
 	});
 }
 
@@ -725,7 +818,8 @@ async function handleInsertImage(args: unknown): Promise<unknown> {
 async function handleApplyStyle(args: unknown): Promise<unknown> {
 	const config = args as { paragraphIndex?: number; styleName?: string };
 	const { paragraphIndex = 0, styleName = "" } = config;
-	if (!styleName) return { error: "styleName is required", errorCode: "INVALID_PARAMETER" };
+	if (!styleName)
+		return { error: "styleName is required", errorCode: "INVALID_PARAMETER" };
 
 	return runInWord(async (ctx) => {
 		const paras = ctx.document.body.paragraphs;
@@ -733,7 +827,10 @@ async function handleApplyStyle(args: unknown): Promise<unknown> {
 		await ctx.sync();
 
 		if (paragraphIndex >= paras.items.length) {
-			return { error: `Paragraph ${paragraphIndex} not found. Document has ${paras.items.length} paragraphs.`, errorCode: "INVALID_PARAMETER" };
+			return {
+				error: `Paragraph ${paragraphIndex} not found. Document has ${paras.items.length} paragraphs.`,
+				errorCode: "INVALID_PARAMETER",
+			};
 		}
 
 		const para = paras.items[paragraphIndex];
@@ -750,7 +847,11 @@ async function handleGetSections(_args: unknown): Promise<unknown> {
 		sections.load("items");
 		await ctx.sync();
 
-		const result: Array<{ index: number; differentFirstPage: boolean; differentOddAndEvenPages: boolean }> = [];
+		const result: Array<{
+			index: number;
+			differentFirstPage: boolean;
+			differentOddAndEvenPages: boolean;
+		}> = [];
 		for (let i = 0; i < sections.items.length; i++) {
 			const sec = sections.items[i];
 			sec.load("differentFirstPage,differentOddAndEvenPages");
@@ -766,16 +867,26 @@ async function handleGetSections(_args: unknown): Promise<unknown> {
 }
 
 async function handleInsertList(args: unknown): Promise<unknown> {
-	const config = args as { type?: string; items?: string[]; afterParagraphIndex?: number };
+	const config = args as {
+		type?: string;
+		items?: string[];
+		afterParagraphIndex?: number;
+	};
 	const { type = "bulleted", items = [], afterParagraphIndex = -1 } = config;
-	if (!items.length) return { error: "items must be non-empty", errorCode: "EMPTY_ITEMS" };
+	if (!items.length)
+		return { error: "items must be non-empty", errorCode: "EMPTY_ITEMS" };
 
 	return runInWord(async (ctx) => {
 		const originalMode = ctx.document.changeTrackingMode;
-		ctx.document.changeTrackingMode = (Word as any).ChangeTrackingMode.trackMineOnly;
+		ctx.document.changeTrackingMode = (
+			Word as any
+		).ChangeTrackingMode.trackMineOnly;
 
 		const body = ctx.document.body;
-		const bulletType = type === "numbered" ? (Word as any).BulletType.numbered : (Word as any).BulletType.bulleted;
+		const bulletType =
+			type === "numbered"
+				? (Word as any).BulletType.numbered
+				: (Word as any).BulletType.bulleted;
 
 		// Build list text
 		const listText = items.join("\r");
@@ -787,7 +898,10 @@ async function handleInsertList(args: unknown): Promise<unknown> {
 			const paras = body.paragraphs;
 			paras.load("items");
 			await ctx.sync();
-			insertRange = paras.items[Math.min(afterParagraphIndex, paras.items.length - 1)].getRange("After");
+			insertRange =
+				paras.items[
+					Math.min(afterParagraphIndex, paras.items.length - 1)
+				].getRange("After");
 		}
 
 		insertRange.insertParagraph(listText, (Word as any).InsertLocation.after);
@@ -811,6 +925,12 @@ async function handleInsertList(args: unknown): Promise<unknown> {
 		ctx.document.changeTrackingMode = originalMode;
 		await ctx.sync();
 
-		return { type, itemCount: items.length, afterParagraphIndex, inserted: true, tracked: true };
+		return {
+			type,
+			itemCount: items.length,
+			afterParagraphIndex,
+			inserted: true,
+			tracked: true,
+		};
 	});
 }
