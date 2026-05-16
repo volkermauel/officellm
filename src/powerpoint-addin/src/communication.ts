@@ -124,11 +124,16 @@ export async function reportResult(
 			});
 			if (response.ok) return;
 			if (attempt === MAX_RETRIES) {
-				console.warn(`Result report failed: HTTP ${response.status} after ${MAX_RETRIES} attempts`);
+				console.warn(
+					`Result report failed: HTTP ${response.status} after ${MAX_RETRIES} attempts`,
+				);
 			}
 		} catch (err) {
 			if (attempt === MAX_RETRIES) {
-				console.warn(`Result report failed after ${MAX_RETRIES} attempts:`, err);
+				console.warn(
+					`Result report failed after ${MAX_RETRIES} attempts:`,
+					err,
+				);
 			} else {
 				await new Promise((r) => setTimeout(r, 500 * attempt));
 			}

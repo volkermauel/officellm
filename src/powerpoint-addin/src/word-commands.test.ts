@@ -173,7 +173,9 @@ describe("word_replace_text", () => {
 
 		expect(result.replaced).toBe(true);
 		// Verify the paragraph text actually changed
-		expect(mock.data.paragraphs[3].text).toBe("The market grew by 20% year over year.");
+		expect(mock.data.paragraphs[3].text).toBe(
+			"The market grew by 20% year over year.",
+		);
 	});
 
 	it("returns error if oldText not found", async () => {
@@ -259,7 +261,9 @@ describe("word_delete_paragraph", () => {
 		expect(result.deleted).toBe(true);
 		// Verify paragraph was actually removed
 		expect(mock.data.paragraphs).toHaveLength(6);
-		expect(mock.data.paragraphs[3].text).toBe("Revenue grew 20% in the APAC region.");
+		expect(mock.data.paragraphs[3].text).toBe(
+			"Revenue grew 20% in the APAC region.",
+		);
 	});
 
 	it("returns error for out-of-range", async () => {

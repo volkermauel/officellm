@@ -254,8 +254,15 @@ class MockParagraph {
 		return new MockRange(
 			this._ctx,
 			this._para.text,
-			(newText) => { this._para.text = newText; },
-			(commentText) => { this._data.comments.push({ text: commentText, paragraphIndex: this._index }); },
+			(newText) => {
+				this._para.text = newText;
+			},
+			(commentText) => {
+				this._data.comments.push({
+					text: commentText,
+					paragraphIndex: this._index,
+				});
+			},
 		);
 	}
 
@@ -281,7 +288,9 @@ class MockParagraph {
 			searchText,
 			options,
 			this._para.text,
-			(oldText: string, newText: string) => { this._para.text = this._para.text.replace(oldText, newText); }, // propagate replace to paragraph data
+			(oldText: string, newText: string) => {
+				this._para.text = this._para.text.replace(oldText, newText);
+			}, // propagate replace to paragraph data
 		);
 	}
 
@@ -413,7 +422,12 @@ class MockRange {
 	private _onReplace?: (oldText: string, newText: string) => void;
 	private _onComment?: (text: string) => void;
 
-	constructor(ctx: WordMockContext, text: string, onReplace?: (oldText: string, newText: string) => void, onComment?: (text: string) => void) {
+	constructor(
+		ctx: WordMockContext,
+		text: string,
+		onReplace?: (oldText: string, newText: string) => void,
+		onComment?: (text: string) => void,
+	) {
 		this._ctx = ctx;
 		this._text = text;
 		this._onReplace = onReplace;
