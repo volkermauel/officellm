@@ -67,6 +67,8 @@ function makeTestDoc(): MockDocumentData {
 		],
 		selectedText: "market grew by 15%",
 		comments: [],
+		changeTrackingMode: "Off",
+		changeLog: [],
 	};
 }
 
@@ -272,6 +274,100 @@ describe("word_delete_paragraph", () => {
 		})) as any;
 
 		expect(result.error).toContain("out of range");
+	});
+});
+
+// ── TRACKED CHANGES ────────────────────────────────────────────
+
+describe("word_replace_text tracked changes", () => {
+	it("returns tracked: true for replace", async () => {
+		const result = (await processCommand("c20", "word_replace_text", {
+			paragraphIndex: 3,
+			oldText: "15%",
+			newText: "20%",
+		})) as any;
+
+		expect(result.replaced).toBe(true);
+		expect(result.tracked).toBe(true);
+	});
+});
+
+describe("word_insert_text tracked changes", () => {
+	it("returns tracked: true for insert at end", async () => {
+		const result = (await processCommand("c21", "word_insert_text", {
+			text: "Tracked insertion",
+			insertLocation: "end",
+		})) as any;
+
+		expect(result.inserted).toBe(true);
+		expect(result.tracked).toBe(true);
+	});
+});
+
+describe("word_delete_paragraph tracked changes", () => {
+	it("returns tracked: true for delete", async () => {
+		const result = (await processCommand("c22", "word_delete_paragraph", {
+			paragraphIndex: 3,
+		})) as any;
+
+		expect(result.deleted).toBe(true);
+		expect(result.tracked).toBe(true);
+	});
+});
+
+describe("word_get_tracked_changes", () => {
+	it("returns change tracking mode and pending count", async () => {
+		const result = (await processCommand(
+			"c23",
+			"word_get_tracked_changes",
+			{},
+		)) as any;
+
+		expect(result.changeTrackingMode).toBeDefined();
+		expect(typeof result.pendingChanges).toBe("number");
+	});
+});
+
+describe("word_accept_all_changes", () => {
+	it("accepts all changes and clears changeLog", async () => {
+		// First make a change
+		await processCommand("c24", "word_replace_text", {
+			paragraphIndex: 3,
+			oldText: "15%",
+			newText: "20%",
+		});
+
+		const result = (await processCommand(
+			"c25",
+			"word_accept_all_changes",
+			{},
+		)) as any;
+
+		expect(result.accepted).toBe(true);
+		expect(mock.data.changeLog).toHaveLength(0);
+	});
+});
+
+describe("word_reject_all_changes", () => {
+	it("rejects all changes and restores original text", async () => {
+		// First make a change
+		await processCommand("c26", "word_replace_text", {
+			paragraphIndex: 3,
+			oldText: "15%",
+			newText: "20%",
+		});
+
+		const result = (await processCommand(
+			"c27",
+			"word_reject_all_changes",
+			{},
+		)) as any;
+
+		expect(result.rejected).toBe(true);
+		expect(mock.data.changeLog).toHaveLength(0);
+		expect(mock.data.paragraphs[3].text).toBe(
+			"The market grew by 15% year over year.",
+		);
 	});
 });
 

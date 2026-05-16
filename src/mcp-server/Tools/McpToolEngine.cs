@@ -449,7 +449,7 @@ public static class McpToolEngine
         new
         {
             name = "word_delete_paragraph",
-            description = "Deletes a paragraph by index. Irreversible — users should create backups.",
+            description = "Deletes a paragraph by index. Creates a tracked deletion if change tracking is enabled.",
             inputSchema = new
             {
                 type = "object",
@@ -459,6 +459,48 @@ public static class McpToolEngine
                     ["paragraphIndex"] = new { type = "integer", description = "Zero-based paragraph index to delete" }
                 },
                 required = new[] { "instanceId", "paragraphIndex" }
+            }
+        },
+        new
+        {
+            name = "word_get_tracked_changes",
+            description = "Returns the current change tracking mode and count of pending revisions in the Word document.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "word_accept_all_changes",
+            description = "Accepts all tracked changes in the Word document. Finalizes all pending insertions, deletions, and formatting changes.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "word_reject_all_changes",
+            description = "Rejects all tracked changes in the Word document. Reverts all pending insertions, deletions, and formatting changes.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }
+                },
+                required = new[] { "instanceId" }
             }
         }
     ];
@@ -495,6 +537,11 @@ public static class McpToolEngine
         "word_insert_text",
         "word_add_comment",
         "word_delete_paragraph",
+
+        // Word tracked changes
+        "word_get_tracked_changes",
+        "word_accept_all_changes",
+        "word_reject_all_changes",
     };
 
     /// <summary>
