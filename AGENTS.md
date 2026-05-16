@@ -133,7 +133,7 @@ When working with the Word JavaScript API in the add-in:
 - **`getTextFrameOrNullObject` equivalent** — Word has no direct equivalent. Use `range.getHtml()` or `range.getText()` to read content. For null-safe patterns, check `range.isNullObject` after `context.sync()`.
 - **Range-based operations** — Word operates on `Range` objects. Get the current selection via `context.document.getSelection()`, then manipulate it as a range.
 
-### Tool Inventory (43 tools)
+### Tool Inventory (53 tools)
 
 | #   | Tool Name                            | Host       | Category        |
 | --- | ------------------------------------ | ---------- | --------------- |
@@ -180,6 +180,16 @@ When working with the Word JavaScript API in the add-in:
 | 41  | `outlook_draft_reply`                | Outlook    | Write (draft)   |
 | 42  | `outlook_apply_category`             | Outlook    | Write           |
 | 43  | `outlook_send_message`               | Outlook    | Write (gated)   |
+| 44  | `excel_add_sheet`                    | Excel      | Write           |
+| 45  | `excel_delete_sheet`                 | Excel      | Write           |
+| 46  | `excel_rename_sheet`                 | Excel      | Write           |
+| 47  | `excel_sort_range`                   | Excel      | Write           |
+| 48  | `excel_filter_range`                 | Excel      | Write           |
+| 49  | `excel_create_chart`                 | Excel      | Write           |
+| 50  | `excel_get_charts`                   | Excel      | Read            |
+| 51  | `excel_format_range`                 | Excel      | Write           |
+| 52  | `excel_apply_conditional_formatting` | Excel      | Write           |
+| 53  | `excel_create_pivottable`            | Excel      | Write           |
 
 **Mutation modes by host**:
 

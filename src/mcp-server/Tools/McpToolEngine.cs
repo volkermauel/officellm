@@ -678,6 +678,26 @@ public static class McpToolEngine
             }
         },
 
+        // ── Excel Sheet Management ──────────────────────────────
+        new { name = "excel_add_sheet", description = "Adds a new worksheet to the workbook. Returns the new sheet name and position. Undoable via Ctrl+Z.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }, ["name"] = new { type = "string", description = "Name for the new sheet. Default: auto-generated." }, ["position"] = new { type = "number", description = "0-based tab position. Default: end of tab list." } }, required = new[] { "instanceId" } } },
+        new { name = "excel_delete_sheet", description = "Deletes a worksheet by name. Cannot delete the last sheet. Undoable via Ctrl+Z.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }, ["sheetName"] = new { type = "string", description = "Name of the worksheet to delete." } }, required = new[] { "instanceId", "sheetName" } } },
+        new { name = "excel_rename_sheet", description = "Renames an existing worksheet. Returns old and new names. Undoable via Ctrl+Z.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }, ["sheetName"] = new { type = "string", description = "Current name of the worksheet." }, ["newName"] = new { type = "string", description = "New name for the worksheet." } }, required = new[] { "instanceId", "sheetName", "newName" } } },
+
+        // ── Excel Sort & Filter ──────────────────────────────────
+        new { name = "excel_sort_range", description = "Sorts a data range by one or more columns. Supports multi-column sort with ascending/descending order. Undoable via Ctrl+Z.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sheetName"] = new { type = "string", description = "Worksheet name." }, ["address"] = new { type = "string", description = "A1-style range address." }, ["criteria"] = new { type = "array", description = "Sort criteria: [{ column: 0-based index, ascending: bool }].", items = new { type = "object" } }, ["hasHeader"] = new { type = "boolean", description = "First row is header. Default: true.", @default = true } }, required = new[] { "instanceId", "sheetName", "address", "criteria" } } },
+        new { name = "excel_filter_range", description = "Applies autofilter to a data range with value-based criteria. Use clearFilters to remove all filters. Undoable via Ctrl+Z.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sheetName"] = new { type = "string", description = "Worksheet name." }, ["address"] = new { type = "string", description = "A1-style range address including headers." }, ["column"] = new { type = "number", description = "0-based column index to filter on." }, ["criteria"] = new { type = "object", description = "Filter criteria: { value: 'Active' } or { operator: 'greaterThan', value: 100 }." }, ["clearFilters"] = new { type = "boolean", description = "Remove all filters. Default: false.", @default = false } }, required = new[] { "instanceId", "sheetName", "address" } } },
+
+        // ── Excel Charts ─────────────────────────────────────────
+        new { name = "excel_create_chart", description = "Creates a chart from a data range. Types: Column, Bar, Line, Pie, Scatter, Area, Doughnut. Auto-positioned adjacent to data. Undoable via Ctrl+Z.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sheetName"] = new { type = "string", description = "Worksheet containing data." }, ["dataRange"] = new { type = "string", description = "A1-style data range (e.g. 'A1:B10')." }, ["chartType"] = new { type = "string", description = "Chart type. Default: Column.", @default = "Column" }, ["title"] = new { type = "string", description = "Optional chart title." } }, required = new[] { "instanceId", "sheetName", "dataRange" } } },
+        new { name = "excel_get_charts", description = "Returns a list of all charts with type, title, data range, and position.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sheetName"] = new { type = "string", description = "Filter to specific sheet. Default: all sheets." } }, required = new[] { "instanceId" } } },
+
+        // ── Excel Formatting ─────────────────────────────────────
+        new { name = "excel_format_range", description = "Applies formatting to a range: font, fill, borders, alignment, numberFormat. Undoable via Ctrl+Z.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sheetName"] = new { type = "string", description = "Worksheet name." }, ["address"] = new { type = "string", description = "A1-style range address." }, ["font"] = new { type = "object", description = "Font: { name, size, bold, italic, color, underline }." }, ["fill"] = new { type = "object", description = "Fill: { color }." }, ["borders"] = new { type = "object", description = "Borders: { style, color }." }, ["alignment"] = new { type = "object", description = "Alignment: { horizontal, vertical, wrapText }." }, ["numberFormat"] = new { type = "string", description = "Number format (e.g. '#,##0.00')." } }, required = new[] { "instanceId", "sheetName", "address" } } },
+        new { name = "excel_apply_conditional_formatting", description = "Applies conditional formatting. Types: cellValue, dataBar, colorScale, iconSet. Last applied wins on conflict.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sheetName"] = new { type = "string", description = "Worksheet name." }, ["address"] = new { type = "string", description = "A1-style range address." }, ["ruleType"] = new { type = "string", description = "Rule type: cellValue, dataBar, colorScale, iconSet." }, ["operator"] = new { type = "string", description = "For cellValue: greaterThan, lessThan, equalTo, between." }, ["value"] = new { type = "string", description = "Comparison value for cellValue." }, ["format"] = new { type = "object", description = "For cellValue: { fillColor }." }, ["minColor"] = new { type = "string", description = "For colorScale: min color." }, ["maxColor"] = new { type = "string", description = "For colorScale: max color." }, ["iconSet"] = new { type = "string", description = "For iconSet: 3TrafficLights, 3Arrows, etc." } }, required = new[] { "instanceId", "sheetName", "address", "ruleType" } } },
+
+        // ── Excel Pivot Table ────────────────────────────────────
+        new { name = "excel_create_pivottable", description = "Creates a pivot table from source data on a new sheet. Specify row/column/value fields with aggregation. Requires headers.", inputSchema = new { type = "object", properties = new Dictionary<string, object> { ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID." }, ["sourceRange"] = new { type = "string", description = "Source range with headers (e.g. 'Data!A1:E1000')." }, ["name"] = new { type = "string", description = "Pivot table name." }, ["rows"] = new { type = "array", description = "Row field names.", items = new { type = "string" } }, ["columns"] = new { type = "array", description = "Column field names.", items = new { type = "string" } }, ["values"] = new { type = "array", description = "Value fields: [{ field, aggregation: sum|count|average|min|max }].", items = new { type = "object" } }, ["destinationSheet"] = new { type = "string", description = "Destination sheet name. Default: 'PivotTable'." } }, required = new[] { "instanceId", "sourceRange", "rows", "values" } } },
+
         // ── Outlook Read tools ──────────────────────────────────────
         new
         {
@@ -806,6 +826,18 @@ public static class McpToolEngine
         "excel_write_range",
         "excel_write_formula",
         "excel_create_table",
+
+        // Excel Analysis
+        "excel_add_sheet",
+        "excel_delete_sheet",
+        "excel_rename_sheet",
+        "excel_sort_range",
+        "excel_filter_range",
+        "excel_create_chart",
+        "excel_get_charts",
+        "excel_format_range",
+        "excel_apply_conditional_formatting",
+        "excel_create_pivottable",
 
         // Outlook
         "outlook_get_current_item",

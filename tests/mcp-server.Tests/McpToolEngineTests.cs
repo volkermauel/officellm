@@ -10,12 +10,12 @@ public class McpToolEngineTests
 		McpToolEngine.ResetForTesting();
 	}
 
-    public void GetToolDefinitions_Returns43Tools()
+    public void GetToolDefinitions_Returns53Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(43, tools.Length);
+        Assert.Equal(53, tools.Length);
     }
 
     [Fact]
@@ -82,6 +82,18 @@ public class McpToolEngineTests
         Assert.Contains("outlook_draft_reply", names);
         Assert.Contains("outlook_apply_category", names);
         Assert.Contains("outlook_send_message", names);
+
+        // Excel Analysis
+        Assert.Contains("excel_add_sheet", names);
+        Assert.Contains("excel_delete_sheet", names);
+        Assert.Contains("excel_rename_sheet", names);
+        Assert.Contains("excel_sort_range", names);
+        Assert.Contains("excel_filter_range", names);
+        Assert.Contains("excel_create_chart", names);
+        Assert.Contains("excel_get_charts", names);
+        Assert.Contains("excel_format_range", names);
+        Assert.Contains("excel_apply_conditional_formatting", names);
+        Assert.Contains("excel_create_pivottable", names);
     }
 
     [Fact]
