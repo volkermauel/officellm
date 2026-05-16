@@ -188,7 +188,10 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             "/api/word_replace_text",
             "/api/word_insert_text",
             "/api/word_add_comment",
-            "/api/word_delete_paragraph"
+            "/api/word_delete_paragraph",
+            "/api/word_get_tracked_changes",
+            "/api/word_accept_all_changes",
+            "/api/word_reject_all_changes"
         };
 
         foreach (var expected in expectedPaths)
@@ -411,7 +414,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Mcp_ToolsList_Returns26Tools()
+    public async Task Mcp_ToolsList_Returns29Tools()
     {
         // Initialize first
         await _client.PostAsJsonAsync("/mcp", new
@@ -431,7 +434,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         var tools = body.GetProperty("result").GetProperty("tools");
-        Assert.Equal(26, tools.GetArrayLength());
+        Assert.Equal(29, tools.GetArrayLength());
     }
 
     [Fact]
@@ -484,6 +487,25 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             jsonrpc = "2.0", id = 3, method = "tools/call",
             @params = new { name = toolName, arguments = args }
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var result = body.GetProperty("result");
+        Assert.True(result.TryGetProperty("isError", out var isError));
+        Assert.True(isError.GetBoolean(), $"{toolName} should fail without instanceId");
+    }
+
+    [Theory]
+    [InlineData("word_accept_all_changes", null)]
+    [InlineData("word_reject_all_changes", null)]
+    [InlineData("word_get_tracked_changes", null)]
+    public async Task Mcp_TrackedChangeTools_RequireInstanceId(string toolName, string? otherRequired)
+    {
+        var response = await _client.PostAsJsonAsync("/mcp", new
+        {
+            jsonrpc = "2.0", id = 3, method = "tools/call",
+            @params = new { name = toolName, arguments = new { } }
         });
 
         response.EnsureSuccessStatusCode();

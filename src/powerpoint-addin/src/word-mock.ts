@@ -15,6 +15,8 @@ export interface MockDocumentData {
 	paragraphs: MockParagraphData[];
 	selectedText?: string;
 	comments: Array<{ text: string; paragraphIndex?: number }>;
+	changeTrackingMode: "Off" | "TrackAll" | "TrackMineOnly";
+	changeLog: Array<{ type: string; paragraphIndex: number; oldText?: string; newText?: string }>;
 }
 
 export class WordMock {
@@ -72,6 +74,29 @@ export class WordMock {
 		this.reportResultCalls.push({ commandId, success, error, payload });
 	};
 
+	acceptAllChanges() {
+		// Clear the change log — changes are accepted (applied)
+		this._data.changeLog = [];
+	}
+
+	rejectAllChanges() {
+		// Revert all tracked changes back to original state
+		for (const change of [...this._data.changeLog].reverse()) {
+			if (change.type === "replace" && change.oldText !== undefined) {
+				this._data.paragraphs[change.paragraphIndex].text = change.oldText;
+			} else if (change.type === "insert") {
+				this._data.paragraphs.splice(change.paragraphIndex, 1);
+			} else if (change.type === "delete" && change.oldText !== undefined) {
+				this._data.paragraphs.splice(change.paragraphIndex, 0, {
+					text: change.oldText,
+					style: "Normal",
+					outlineLevel: "OutlineLevelBodyText",
+				});
+			}
+		}
+		this._data.changeLog = [];
+	}
+
 	reset() {
 		this.reportResultCalls = [];
 	}
@@ -117,15 +142,46 @@ class MockDocument {
 	private _ctx: WordMockContext;
 	private _data: MockDocumentData;
 	body: MockBody;
+	private _changeTrackingMode: string;
 
 	constructor(ctx: WordMockContext, data: MockDocumentData) {
 		this._ctx = ctx;
 		this._data = data;
 		this.body = new MockBody(ctx, data);
+		this._changeTrackingMode = data.changeTrackingMode || "Off";
+	}
+
+	get changeTrackingMode() {
+		return this._changeTrackingMode;
+	}
+	set changeTrackingMode(mode: string) {
+		this._changeTrackingMode = mode;
 	}
 
 	getSelection() {
 		return new MockSelection(this._ctx, this._data);
+	}
+
+	acceptAllChanges() {
+		this._data.changeLog = [];
+	}
+
+	rejectAllChanges() {
+		// Revert all tracked changes
+		for (const change of [...this._data.changeLog].reverse()) {
+			if (change.type === "replace" && change.oldText !== undefined) {
+				this._data.paragraphs[change.paragraphIndex].text = change.oldText;
+			} else if (change.type === "insert") {
+				this._data.paragraphs.splice(change.paragraphIndex, 1);
+			} else if (change.type === "delete" && change.oldText !== undefined) {
+				this._data.paragraphs.splice(change.paragraphIndex, 0, {
+					text: change.oldText,
+					style: "Normal",
+					outlineLevel: "OutlineLevelBodyText",
+				});
+			}
+		}
+		this._data.changeLog = [];
 	}
 }
 
@@ -289,8 +345,10 @@ class MockParagraph {
 			options,
 			this._para.text,
 			(oldText: string, newText: string) => {
+				const original = this._para.text;
 				this._para.text = this._para.text.replace(oldText, newText);
-			}, // propagate replace to paragraph data
+				this._data.changeLog.push({ type: "replace", paragraphIndex: this._index, oldText: original, newText: this._para.text });
+			}, // propagate replace to paragraph data + log change
 		);
 	}
 

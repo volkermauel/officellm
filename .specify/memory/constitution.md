@@ -12,7 +12,14 @@ The MCP server binds exclusively to `127.0.0.1` for MVP. No remote network expos
 
 ### III. User Control & Transparency (NON-NEGOTIABLE)
 
-The model proposes; the user approves. All document mutations go through a confirmation gate with before/after diffs. An audit log records every tool call with timestamp, correlation fields, document handle, mutation status, and confirmation ID. Undo support is mandatory for all mutation tools.
+The model proposes; the user approves. All document mutations require user confirmation before being finalized. Confirmation is satisfied through either:
+
+1. **Word tracked changes** — Mutations are applied as tracked insertions/deletions (`changeTrackingMode: "TrackMineOnly"`). The user accepts or rejects through Word's native Review ribbon or the `word_accept_all_changes`/`word_reject_all_changes` tools. No separate confirmation gate is needed.
+2. **Explicit confirmation gate** — For hosts without native review APIs, mutations go through a confirmation gate with before/after diffs. The user must explicitly approve before changes are applied.
+
+**PowerPoint note**: PowerPoint has no tracked changes API. Mutations are direct-write with undo grouped per `PowerPoint.run()` batch. The undo group serves as the safety net — users can undo the entire operation in one step.
+
+An audit log records every tool call with timestamp, correlation fields, document handle, mutation status, and confirmation ID. Undo support is mandatory for all mutation tools.
 
 ### IV. Minimal Surface Area
 
@@ -41,4 +48,4 @@ Each Office host is implemented as an independent MVP phase. Each phase delivers
 
 This constitution supersedes all other development practices. Amendments require documenting the change, its rationale, and migration impact. All PRs and reviews must verify compliance with Safety-First, Local-Only Execution, and User Control principles.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-14 | **Last Amended**: 2026-05-14
+**Version**: 1.1.0 | **Ratified**: 2026-05-14 | **Last Amended**: 2026-05-16

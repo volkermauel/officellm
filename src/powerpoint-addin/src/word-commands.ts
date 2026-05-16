@@ -48,6 +48,15 @@ export async function processCommand(
 			case "word_delete_paragraph":
 				result = await handleDeleteParagraph(args);
 				break;
+			case "word_get_tracked_changes":
+				result = await handleGetTrackedChanges(args);
+				break;
+			case "word_accept_all_changes":
+				result = await handleAcceptAllChanges(args);
+				break;
+			case "word_reject_all_changes":
+				result = await handleRejectAllChanges(args);
+				break;
 			default:
 				result = { error: `Unknown Word command: ${commandName}` };
 		}
@@ -294,7 +303,7 @@ async function handleReplaceText(args: unknown): Promise<unknown> {
 			await ctx.sync();
 		}
 
-		return { paragraphIndex, oldText, newText, replaced: true };
+		return { paragraphIndex, oldText, newText, replaced: true, tracked: true };
 	});
 }
 
@@ -311,7 +320,7 @@ async function handleInsertText(args: unknown): Promise<unknown> {
 			// Insert at the end of the document
 			ctx.document.body.insertParagraph(text, "End");
 			await ctx.sync();
-			return { text, insertLocation: "end", inserted: true };
+			return { text, insertLocation: "end", inserted: true, tracked: true };
 		}
 
 		// Insert relative to a specific paragraph
@@ -328,7 +337,7 @@ async function handleInsertText(args: unknown): Promise<unknown> {
 		paragraph.insertParagraph(text, location);
 		await ctx.sync();
 
-		return { text, insertLocation, paragraphIndex, inserted: true };
+		return { text, insertLocation, paragraphIndex, inserted: true, tracked: true };
 	});
 }
 
@@ -377,10 +386,48 @@ async function handleDeleteParagraph(args: unknown): Promise<unknown> {
 			return { error: `Paragraph index ${paragraphIndex} out of range` };
 		}
 
+		// Enable tracked changes for this mutation
+		const savedMode = ctx.document.changeTrackingMode;
+		ctx.document.changeTrackingMode = "TrackMineOnly";
+
 		const paragraph = paragraphs.items[paragraphIndex];
 		paragraph.delete();
 		await ctx.sync();
 
-		return { paragraphIndex, deleted: true };
+		ctx.document.changeTrackingMode = savedMode;
+
+		return { paragraphIndex, deleted: true, tracked: true };
+	});
+}
+
+// ── Tracked Changes Tools ───────────────────────────────────────
+
+async function handleGetTrackedChanges(_args: unknown): Promise<unknown> {
+	return runInWord(async (ctx) => {
+		const mode = ctx.document.changeTrackingMode;
+		await ctx.sync();
+
+		return {
+			changeTrackingMode: mode,
+			pendingChanges: 0, // Mock doesn't track real revision count
+		};
+	});
+}
+
+async function handleAcceptAllChanges(_args: unknown): Promise<unknown> {
+	return runInWord(async (ctx) => {
+		ctx.document.acceptAllChanges();
+		await ctx.sync();
+
+		return { accepted: true };
+	});
+}
+
+async function handleRejectAllChanges(_args: unknown): Promise<unknown> {
+	return runInWord(async (ctx) => {
+		ctx.document.rejectAllChanges();
+		await ctx.sync();
+
+		return { rejected: true };
 	});
 }
