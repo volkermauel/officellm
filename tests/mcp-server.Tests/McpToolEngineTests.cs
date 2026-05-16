@@ -10,12 +10,12 @@ public class McpToolEngineTests
 		McpToolEngine.ResetForTesting();
 	}
 
-    public void GetToolDefinitions_Returns39Tools()
+    public void GetToolDefinitions_Returns43Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(39, tools.Length);
+        Assert.Equal(43, tools.Length);
     }
 
     [Fact]
@@ -116,8 +116,8 @@ public class McpToolEngineTests
             var doc = JsonDocument.Parse(json);
             var name = doc.RootElement.GetProperty("name").GetString()!;
 
-            // office_get_active_apps doesn't need instanceId
-            if (name == "office_get_active_apps") continue;
+            // These tools don't require instanceId
+            if (name is "office_get_active_apps" or "office_get_document_context" or "office_batch_call" or "office_suggest_tools") continue;
 
             var required = doc.RootElement
                 .GetProperty("inputSchema")
@@ -165,13 +165,54 @@ public class McpToolEngineTests
     }
 
     [Fact]
-    public async Task ExecuteTool_AliasOfficeGetActiveApp_Works()
+    public async Task ExecuteTool_MissingInstanceId_ReturnsErrorCode()
     {
-        var result = await McpToolEngine.ExecuteTool("office_get_active_app", null);
+        var args = JsonSerializer.Deserialize<JsonElement>("{\"slideIndex\": 0}");
+        var result = await McpToolEngine.ExecuteTool("powerpoint_get_slide", args);
 
         var json = JsonSerializer.Serialize(result);
         var doc = JsonDocument.Parse(json);
-        Assert.True(doc.RootElement.TryGetProperty("isError", out var isError));
-        Assert.False(isError.GetBoolean());
+        var content = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();
+        var errorObj = JsonDocument.Parse(content!).RootElement;
+
+        Assert.True(doc.RootElement.GetProperty("isError").GetBoolean());
+        Assert.Equal("MISSING_PARAMETER", errorObj.GetProperty("errorCode").GetString());
+        Assert.Equal("instanceId", errorObj.GetProperty("details").GetProperty("parameter").GetString());
+    }
+
+    [Fact]
+    public async Task ExecuteTool_UnknownInstance_ReturnsErrorCode()
+    {
+        var args = JsonSerializer.Deserialize<JsonElement>("{\"instanceId\": \"nonexistent_99\"}");
+        var result = await McpToolEngine.ExecuteTool("powerpoint_get_deck_outline", args);
+
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonDocument.Parse(json);
+        var content = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();
+        var errorObj = JsonDocument.Parse(content!).RootElement;
+
+        Assert.True(doc.RootElement.GetProperty("isError").GetBoolean());
+        Assert.Equal("INSTANCE_NOT_FOUND", errorObj.GetProperty("errorCode").GetString());
+        Assert.Equal("nonexistent_99", errorObj.GetProperty("details").GetProperty("instanceId").GetString());
+    }
+
+    [Fact]
+    public async Task ExecuteTool_UnknownTool_ReturnsErrorCode()
+    {
+        // Register an instance so we get past MISSING_PARAMETER check
+        McpToolEngine.ResetForTesting();
+        var registry = McpToolEngine.GetRegistry();
+        var iid = registry.RegisterInstance("PowerPoint", "test.pptx");
+
+        var args = JsonSerializer.Deserialize<JsonElement>($"{{\"instanceId\": \"{iid}\"}}");
+        var result = await McpToolEngine.ExecuteTool("nonexistent_tool", args);
+
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonDocument.Parse(json);
+        var content = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString();
+        var errorObj = JsonDocument.Parse(content!).RootElement;
+
+        Assert.True(doc.RootElement.GetProperty("isError").GetBoolean());
+        Assert.Equal("INVALID_PARAMETER", errorObj.GetProperty("errorCode").GetString());
     }
 }

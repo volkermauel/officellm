@@ -41,6 +41,79 @@ public static class McpToolEngine
             }
         },
 
+        // ── Cross-cutting tools ───────────────────────────────────
+        new
+        {
+            name = "office_get_document_context",
+            description = "Returns a rich summary of the current Office environment: which app is active, document metadata, selection state, and host-specific details. One call gives you everything you need to understand the user's environment without calling host-specific tools first.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "The instance ID to get context for. If omitted, returns context for all active instances." }
+                },
+                required = Array.Empty<string>()
+            }
+        },
+        new
+        {
+            name = "office_get_document_stats",
+            description = "Returns quantifiable metrics about the current document: Word (word/page/paragraph count), Excel (sheet/cell count), PowerPoint (slide/shape count), Outlook (folder item/unread count). Use for 'How long is this document?' type questions.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "REQUIRED. The instance ID from office_get_active_apps." }
+                },
+                required = new[] { "instanceId" }
+            }
+        },
+        new
+        {
+            name = "office_batch_call",
+            description = "Execute multiple tool calls in parallel in a single request. Reduces latency from O(N roundTrips) to O(1 roundTrip). Returns per-operation results preserving input order. Max 10 operations per batch.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["calls"] = new
+                    {
+                        type = "array",
+                        description = "Array of tool invocations. Each entry: { toolName, args }. Max 10.",
+                        items = new
+                        {
+                            type = "object",
+                            properties = new Dictionary<string, object>
+                            {
+                                ["toolName"] = new { type = "string", description = "Tool to call" },
+                                ["args"] = new { type = "object", description = "Arguments for the tool" }
+                            },
+                            required = new[] { "toolName" }
+                        }
+                    }
+                },
+                required = new[] { "calls" }
+            }
+        },
+        new
+        {
+            name = "office_suggest_tools",
+            description = "Returns relevant tool suggestions for the current host with descriptions and example invocations. Use when the user asks 'What can you do?' or 'What tools are available for this document?'",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["instanceId"] = new { type = "string", description = "The instance ID to suggest tools for." },
+                    ["category"] = new { type = "string", description = "Filter by category: 'Read', 'Write', or omit for all." }
+                },
+                required = Array.Empty<string>()
+            }
+        },
+
         // ── Read tools ──────────────────────────────────────────
         new
         {
@@ -751,39 +824,68 @@ public static class McpToolEngine
         if (name is "office_get_active_apps" or "office_get_active_app")
             return HandleGetActiveApps();
 
+        // Cross-cutting tools handled server-side
+        if (name == "office_get_document_context")
+            return HandleGetDocumentContext(instanceId: args.HasValue && args.Value.TryGetProperty("instanceId", out var ctxIid) ? ctxIid.GetString() : null);
+
+        if (name == "office_get_document_stats")
+        {
+            string? statsInstanceId = null;
+            if (args.HasValue && args.Value.TryGetProperty("instanceId", out var statsIid))
+                statsInstanceId = statsIid.GetString();
+            if (string.IsNullOrEmpty(statsInstanceId))
+                return new ToolError("Missing required parameter: instanceId.", ErrorCodes.MISSING_PARAMETER, new { parameter = "instanceId" }).ToMcpResponse();
+            return await DispatchToAddIn(statsInstanceId, name, args!);
+        }
+
+        if (name == "office_batch_call")
+            return await HandleBatchCall(args);
+
+        if (name == "office_suggest_tools")
+            return HandleSuggestTools(args);
+
         // All other tools require an explicit instanceId
         string? instanceId = null;
         if (args.HasValue && args.Value.TryGetProperty("instanceId", out var iid))
             instanceId = iid.GetString();
 
+        return await DispatchToAddIn(instanceId, name, args);
+    }
+
+    /// <summary>
+    /// Validates instanceId + dispatches a command to the add-in instance.
+    /// Returns error responses for missing/invalid instanceId or unknown tools.
+    /// </summary>
+    private static async Task<object> DispatchToAddIn(string? instanceId, string name, JsonElement? args)
+    {
         if (string.IsNullOrEmpty(instanceId))
         {
-            return new
-            {
-                content = new[] { new { type = "text", text = "Missing required parameter: instanceId. Call office_get_active_apps first to get the list of available instances." } },
-                isError = true
-            };
+            return new ToolError(
+                "Missing required parameter: instanceId. Call office_get_active_apps first to get the list of available instances.",
+                ErrorCodes.MISSING_PARAMETER,
+                new { parameter = "instanceId" }
+            ).ToMcpResponse();
         }
 
         // Check if instance exists
         var instance = _registry.GetInstance(instanceId);
         if (instance == null)
         {
-            return new
-            {
-                content = new[] { new { type = "text", text = $"Instance '{instanceId}' is not registered or has timed out. Call office_get_active_apps to see current instances." } },
-                isError = true
-            };
+            return new ToolError(
+                $"Instance '{instanceId}' is not registered or has timed out. Call office_get_active_apps to see current instances.",
+                ErrorCodes.INSTANCE_NOT_FOUND,
+                new { instanceId }
+            ).ToMcpResponse();
         }
 
         // Validate tool name
         if (!AddInCommands.Contains(name))
         {
-            return new
-            {
-                content = new[] { new { type = "text", text = $"Unknown tool: {name}" } },
-                isError = true
-            };
+            return new ToolError(
+                $"Unknown tool: {name}",
+                ErrorCodes.INVALID_PARAMETER,
+                new { parameter = "toolName", value = name }
+            ).ToMcpResponse();
         }
 
         // Dispatch command to add-in
@@ -851,6 +953,189 @@ public static class McpToolEngine
         };
     }
 
+    /// <summary>
+    /// Returns unified document context for one or all active instances.
+    /// </summary>
+    private static object HandleGetDocumentContext(string? instanceId)
+    {
+        var instances = _registry.GetActiveInstances();
+
+        List<OfficeInstance> targets;
+        if (!string.IsNullOrEmpty(instanceId))
+        {
+            var single = _registry.GetInstance(instanceId);
+            if (single == null)
+            {
+                return new ToolError(
+                    $"Instance '{instanceId}' is not registered or has timed out.",
+                    ErrorCodes.INSTANCE_NOT_FOUND,
+                    new { instanceId }
+                ).ToMcpResponse();
+            }
+            targets = [single];
+        }
+        else
+        {
+            targets = instances;
+        }
+
+        var contexts = targets.Select(i =>
+        {
+            var hostType = GetHostType(i.AppName);
+            return new
+            {
+                instanceId = i.InstanceId,
+                appName = i.AppName,
+                documentName = i.DocumentName,
+                hostType,
+                connectedAt = i.RegisteredAt.ToString("o"),
+                lastHeartbeat = i.LastHeartbeat.ToString("o"),
+                isAlive = i.IsAlive
+            };
+        }).ToList();
+
+        return new
+        {
+            content = new[] { new { type = "text", text = JsonSerializer.Serialize(new
+            {
+                timestamp = DateTime.UtcNow.ToString("o"),
+                totalInstances = contexts.Count,
+                contexts
+            }, new JsonSerializerOptions { WriteIndented = true }) } },
+            isError = false
+        };
+    }
+
+    /// <summary>
+    /// Returns tool suggestions for the active host.
+    /// </summary>
+    private static object HandleSuggestTools(JsonElement? args)
+    {
+        string? instanceId = null;
+        string? category = null;
+        if (args.HasValue)
+        {
+            if (args.Value.TryGetProperty("instanceId", out var iid))
+                instanceId = iid.GetString();
+            if (args.Value.TryGetProperty("category", out var cat))
+                category = cat.GetString();
+        }
+
+        // Determine host type from instance
+        string hostType = "all";
+        if (!string.IsNullOrEmpty(instanceId))
+        {
+            var instance = _registry.GetInstance(instanceId);
+            if (instance != null)
+                hostType = GetHostType(instance.AppName);
+        }
+
+        var tools = GetToolDefinitions();
+        var suggestions = new List<object>();
+
+        foreach (var tool in tools)
+        {
+            var json = JsonSerializer.Serialize(tool);
+            var doc = JsonDocument.Parse(json);
+            var name = doc.RootElement.GetProperty("name").GetString()!;
+            var desc = doc.RootElement.GetProperty("description").GetString()!;
+
+            // Filter by host
+            if (hostType != "all")
+            {
+                var toolPrefix = name.Split('_')[0];
+                if (toolPrefix != "office" && toolPrefix != hostType) continue;
+            }
+
+            // Filter by category
+            if (!string.IsNullOrEmpty(category))
+            {
+                var isRead = name.Contains("get") || name == "office_get_active_apps" || name == "office_get_document_context" || name == "office_get_document_stats" || name == "office_suggest_tools";
+                if (category.Equals("read", StringComparison.OrdinalIgnoreCase) && !isRead) continue;
+                if (category.Equals("write", StringComparison.OrdinalIgnoreCase) && isRead) continue;
+            }
+
+            suggestions.Add(new { name, description = desc.Length > 100 ? desc[..100] + "..." : desc });
+        }
+
+        return new
+        {
+            content = new[] { new { type = "text", text = JsonSerializer.Serialize(new
+            {
+                hostType,
+                category = category ?? "all",
+                totalTools = suggestions.Count,
+                tools = suggestions
+            }, new JsonSerializerOptions { WriteIndented = true }) } },
+            isError = false
+        };
+    }
+
+    /// <summary>
+    /// Executes multiple tool calls in parallel.
+    /// </summary>
+    private static async Task<object> HandleBatchCall(JsonElement? args)
+    {
+        if (!args.HasValue || !args.Value.TryGetProperty("calls", out var callsArr))
+        {
+            return new ToolError("Missing required parameter: calls.", ErrorCodes.MISSING_PARAMETER, new { parameter = "calls" }).ToMcpResponse();
+        }
+
+        var callsList = callsArr.EnumerateArray().ToList();
+        if (callsList.Count == 0)
+        {
+            return new ToolError("Calls array must not be empty.", ErrorCodes.INVALID_PARAMETER, new { parameter = "calls", value = "empty" }).ToMcpResponse();
+        }
+
+        if (callsList.Count > 10)
+        {
+            return new ToolError("Batch size exceeds maximum of 10 operations.", ErrorCodes.INVALID_PARAMETER, new { parameter = "calls", value = callsList.Count, max = 10 }).ToMcpResponse();
+        }
+
+        var tasks = callsList.Select((call, index) =>
+        {
+            var toolName = call.GetProperty("toolName").GetString() ?? "";
+            JsonElement? toolArgs = call.TryGetProperty("args", out var a) ? a : null;
+            return ExecuteTool(toolName, toolArgs).ContinueWith(t => new
+            {
+                index,
+                toolName,
+                result = t.Result
+            });
+        }).ToList();
+
+        var results = await Task.WhenAll(tasks);
+
+        return new
+        {
+            content = new[] { new { type = "text", text = JsonSerializer.Serialize(new
+            {
+                totalResults = results.Length,
+                results = results.OrderBy(r => r.index).Select(r => new
+                {
+                    r.index,
+                    r.toolName,
+                    r.result
+                }).ToList()
+            }, new JsonSerializerOptions { WriteIndented = true }) } },
+            isError = false
+        };
+    }
+
+    /// <summary>
+    /// Maps app name to host type prefix.
+    /// </summary>
+    private static string GetHostType(string appName)
+    {
+        var lower = appName.ToLowerInvariant();
+        if (lower.Contains("word")) return "word";
+        if (lower.Contains("excel")) return "excel";
+        if (lower.Contains("powerpoint") || lower.Contains("ppt")) return "powerpoint";
+        if (lower.Contains("outlook")) return "outlook";
+        return "unknown";
+    }
+
+
     private static object BuildToolResult(PendingCommand? result, string toolName, string instanceId, string inputs)
     {
         if (result == null)
@@ -863,11 +1148,11 @@ public static class McpToolEngine
                 Outcome = "timeout"
             });
 
-            return new
-            {
-                content = new[] { new { type = "text", text = "Command timed out waiting for add-in response." } },
-                isError = true
-            };
+            return new ToolError(
+                $"Command '{toolName}' timed out waiting for add-in response on instance '{instanceId}'.",
+                ErrorCodes.TIMEOUT,
+                new { toolName, instanceId, timeoutMs = (IsImageTool(toolName) ? 120 : 60) * 1000 }
+            ).ToMcpResponse();
         }
 
         if (result.Success)
@@ -896,11 +1181,13 @@ public static class McpToolEngine
             Error = result.Error
         });
 
-        return new
-        {
-            content = new[] { new { type = "text", text = $"Command failed: {result.Error}" } },
-            isError = true
-        };
+        // Parse error from add-in to determine appropriate error code
+        var errorCode = ParseErrorCode(result.Error);
+        return new ToolError(
+            $"Command failed: {result.Error}",
+            errorCode,
+            new { toolName, instanceId, addInError = result.Error }
+        ).ToMcpResponse();
     }
 
     /// <summary>Gets the registry for instance management endpoints.</summary>
@@ -922,4 +1209,28 @@ public static class McpToolEngine
 
     private static bool IsImageTool(string toolName) =>
         toolName is "powerpoint_get_slide_image" or "powerpoint_get_shape_image";
+
+    private static string ParseErrorCode(string? error)
+    {
+        if (string.IsNullOrEmpty(error)) return ErrorCodes.HOST_NOT_AVAILABLE;
+
+        var lower = error.ToLowerInvariant();
+
+        if (lower.Contains("permission") || lower.Contains("access denied") || lower.Contains("not authorized"))
+            return ErrorCodes.PERMISSION_DENIED;
+        if (lower.Contains("confirmation") || lower.Contains("confirm"))
+            return ErrorCodes.CONFIRMATION_REQUIRED;
+        if (lower.Contains("range") && (lower.Contains("too large") || lower.Contains("exceeds")))
+            return ErrorCodes.RANGE_TOO_LARGE;
+        if (lower.Contains("formula"))
+            return ErrorCodes.INVALID_FORMULA;
+        if (lower.Contains("not available") || lower.Contains("crash") || lower.Contains("unloaded"))
+            return ErrorCodes.HOST_NOT_AVAILABLE;
+        if (lower.Contains("timeout") || lower.Contains("timed out"))
+            return ErrorCodes.TIMEOUT;
+        if (lower.Contains("invalid") && lower.Contains("parameter"))
+            return ErrorCodes.INVALID_PARAMETER;
+
+        return ErrorCodes.HOST_NOT_AVAILABLE;
+    }
 }
