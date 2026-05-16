@@ -1185,25 +1185,48 @@ async function handleRemoveDataValidation(args: unknown): Promise<unknown> {
 
 async function handleProtectSheet(args: unknown): Promise<unknown> {
 	const config = args as {
-		sheetName: string; password?: string;
-		allowSort?: boolean; allowAutoFilter?: boolean;
-		allowInsertRows?: boolean; allowInsertColumns?: boolean;
-		allowDeleteRows?: boolean; allowDeleteColumns?: boolean;
-		allowFormatCells?: boolean; allowPivotTables?: boolean;
+		sheetName: string;
+		password?: string;
+		allowSort?: boolean;
+		allowAutoFilter?: boolean;
+		allowInsertRows?: boolean;
+		allowInsertColumns?: boolean;
+		allowDeleteRows?: boolean;
+		allowDeleteColumns?: boolean;
+		allowFormatCells?: boolean;
+		allowPivotTables?: boolean;
 	};
-	const { sheetName, password, allowSort, allowAutoFilter, allowInsertRows, allowInsertColumns, allowDeleteRows, allowDeleteColumns, allowFormatCells, allowPivotTables } = config;
+	const {
+		sheetName,
+		password,
+		allowSort,
+		allowAutoFilter,
+		allowInsertRows,
+		allowInsertColumns,
+		allowDeleteRows,
+		allowDeleteColumns,
+		allowFormatCells,
+		allowPivotTables,
+	} = config;
 
 	return runInExcel(async (ctx) => {
 		const sheet = ctx.workbook.worksheets.getItem(sheetName);
 		const options: any = {};
 		if (allowSort !== undefined) options.allowSort = allowSort;
-		if (allowAutoFilter !== undefined) options.allowAutoFilter = allowAutoFilter;
-		if (allowInsertRows !== undefined) options.allowInsertRows = allowInsertRows;
-		if (allowInsertColumns !== undefined) options.allowInsertColumns = allowInsertColumns;
-		if (allowDeleteRows !== undefined) options.allowDeleteRows = allowDeleteRows;
-		if (allowDeleteColumns !== undefined) options.allowDeleteColumns = allowDeleteColumns;
-		if (allowFormatCells !== undefined) options.allowFormatCells = allowFormatCells;
-		if (allowPivotTables !== undefined) options.allowPivotTables = allowPivotTables;
+		if (allowAutoFilter !== undefined)
+			options.allowAutoFilter = allowAutoFilter;
+		if (allowInsertRows !== undefined)
+			options.allowInsertRows = allowInsertRows;
+		if (allowInsertColumns !== undefined)
+			options.allowInsertColumns = allowInsertColumns;
+		if (allowDeleteRows !== undefined)
+			options.allowDeleteRows = allowDeleteRows;
+		if (allowDeleteColumns !== undefined)
+			options.allowDeleteColumns = allowDeleteColumns;
+		if (allowFormatCells !== undefined)
+			options.allowFormatCells = allowFormatCells;
+		if (allowPivotTables !== undefined)
+			options.allowPivotTables = allowPivotTables;
 		sheet.protection.protect(options, password || "");
 		await ctx.sync();
 		return { sheetName, protected: true };
@@ -1226,11 +1249,23 @@ async function handleUnprotectSheet(args: unknown): Promise<unknown> {
 
 async function handleSetPageLayout(args: unknown): Promise<unknown> {
 	const config = args as {
-		sheetName: string; orientation?: string; paperSize?: string;
-		printArea?: string; printTitleRows?: string;
-		centerHorizontally?: boolean; centerVertically?: boolean;
+		sheetName: string;
+		orientation?: string;
+		paperSize?: string;
+		printArea?: string;
+		printTitleRows?: string;
+		centerHorizontally?: boolean;
+		centerVertically?: boolean;
 	};
-	const { sheetName, orientation, paperSize, printArea, printTitleRows, centerHorizontally, centerVertically } = config;
+	const {
+		sheetName,
+		orientation,
+		paperSize,
+		printArea,
+		printTitleRows,
+		centerHorizontally,
+		centerVertically,
+	} = config;
 
 	return runInExcel(async (ctx) => {
 		const sheet = ctx.workbook.worksheets.getItem(sheetName);
@@ -1240,8 +1275,10 @@ async function handleSetPageLayout(args: unknown): Promise<unknown> {
 		if (paperSize) layout.paperSize = paperSize;
 		if (printArea) layout.setPrintArea(printArea);
 		if (printTitleRows) layout.setPrintTitleRows(printTitleRows);
-		if (centerHorizontally !== undefined) layout.centerHorizontally = centerHorizontally;
-		if (centerVertically !== undefined) layout.centerVertically = centerVertically;
+		if (centerHorizontally !== undefined)
+			layout.centerHorizontally = centerHorizontally;
+		if (centerVertically !== undefined)
+			layout.centerVertically = centerVertically;
 
 		await ctx.sync();
 		return { sheetName, set: true, undoable: true };
@@ -1255,7 +1292,12 @@ async function handleGetPageLayout(args: unknown): Promise<unknown> {
 	return runInExcel(async (ctx) => {
 		const sheet = ctx.workbook.worksheets.getItem(sheetName);
 		const layout = sheet.pageLayout;
-		layout.load(["orientation", "paperSize", "centerHorizontally", "centerVertically"]);
+		layout.load([
+			"orientation",
+			"paperSize",
+			"centerHorizontally",
+			"centerVertically",
+		]);
 		await ctx.sync();
 
 		return {

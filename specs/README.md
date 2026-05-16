@@ -47,6 +47,8 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 | 15  | [Change Log](015-change-log/)                 | `015-change-log`        | Operation audit trail, undo operations, change summaries                                                                     |
 | 16  | [Excel Navigation](016-excel-navigation/)     | `016-excel-navigation`  | Freeze panes, named ranges (get/add), workbook navigation aids                                                               |
 | 17  | [Excel Validation](017-excel-validation/)     | `017-excel-validation`  | Data validation (dropdowns, number/date constraints, custom formulas), input messages, error alerts                          |
+| 18  | [Cross-Host Expansion](018-cross-host-expansion/) | `018-cross-host` | 30 tools: PPT tags/shape formatting/geometric shapes/merge, Word bookmarks/properties/hyperlinks/footnotes/fields, Excel protection/page layout |
+| 19  | [Dynamic Tool Filtering](019-dynamic-tool-filtering/) | `019-dynamic-filter` | Filter tools/list by active hosts, reduce context from 107 to only connected host tools                             |
 
 ## Progression
 
