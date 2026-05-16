@@ -414,7 +414,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Mcp_ToolsList_Returns77Tools()
+    public async Task Mcp_ToolsList_Returns107Tools()
     {
         // Initialize first
         await _client.PostAsJsonAsync("/mcp", new
@@ -434,7 +434,7 @@ public class HttpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         var tools = body.GetProperty("result").GetProperty("tools");
-        Assert.Equal(77, tools.GetArrayLength());
+        Assert.Equal(107, tools.GetArrayLength());
     }
 
     [Fact]

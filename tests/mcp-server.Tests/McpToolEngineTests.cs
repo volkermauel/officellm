@@ -11,12 +11,12 @@ public class McpToolEngineTests
 	}
 
     [Fact]
-    public void GetToolDefinitions_Returns77Tools()
+    public void GetToolDefinitions_Returns107Tools()
     {
         var tools = McpToolEngine.GetToolDefinitions();
 
         Assert.NotNull(tools);
-        Assert.Equal(77, tools.Length);
+        Assert.Equal(107, tools.Length);
     }
 
     [Fact]
@@ -131,6 +131,42 @@ public class McpToolEngineTests
         // Phase 17: Excel Validation
         Assert.Contains("excel_add_data_validation", names);
         Assert.Contains("excel_remove_data_validation", names);
+
+        // Phase 18: PowerPoint Tags & Shape Formatting
+        Assert.Contains("powerpoint_get_tags", names);
+        Assert.Contains("powerpoint_set_tag", names);
+        Assert.Contains("powerpoint_delete_slides_by_tag", names);
+        Assert.Contains("powerpoint_set_shape_fill", names);
+        Assert.Contains("powerpoint_set_shape_line", names);
+        Assert.Contains("powerpoint_set_shape_rotation", names);
+        Assert.Contains("powerpoint_add_geometric_shape", names);
+        Assert.Contains("powerpoint_add_line", names);
+        Assert.Contains("powerpoint_insert_slides_from_file", names);
+        Assert.Contains("powerpoint_get_layouts", names);
+        Assert.Contains("powerpoint_get_theme_colors", names);
+        Assert.Contains("powerpoint_group_shapes", names);
+        Assert.Contains("powerpoint_ungroup_shape", names);
+
+        // Phase 18: Word Bookmarks, Properties, Hyperlinks, Notes, Fields
+        Assert.Contains("word_get_bookmarks", names);
+        Assert.Contains("word_insert_bookmark", names);
+        Assert.Contains("word_delete_bookmark", names);
+        Assert.Contains("word_goto_bookmark", names);
+        Assert.Contains("word_get_properties", names);
+        Assert.Contains("word_set_properties", names);
+        Assert.Contains("word_get_hyperlinks", names);
+        Assert.Contains("word_insert_hyperlink", names);
+        Assert.Contains("word_insert_footnote", names);
+        Assert.Contains("word_insert_endnote", names);
+        Assert.Contains("word_insert_field", names);
+        Assert.Contains("word_get_content_controls", names);
+        Assert.Contains("word_insert_content_control", names);
+
+        // Phase 18: Excel Protection & Page Layout
+        Assert.Contains("excel_protect_sheet", names);
+        Assert.Contains("excel_unprotect_sheet", names);
+        Assert.Contains("excel_set_page_layout", names);
+        Assert.Contains("excel_get_page_layout", names);
     }
 
     [Fact]

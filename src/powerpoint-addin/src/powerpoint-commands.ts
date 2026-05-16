@@ -88,6 +88,54 @@ export async function processCommand(
 				result = await handleMoveSlide(args);
 				break;
 
+			// Phase 18: Tags & Metadata
+			case "powerpoint_get_tags":
+				result = await handleGetTags(args);
+				break;
+			case "powerpoint_set_tag":
+				result = await handleSetTag(args);
+				break;
+			case "powerpoint_delete_slides_by_tag":
+				result = await handleDeleteSlidesByTag(args);
+				break;
+
+			// Phase 18: Shape Formatting
+			case "powerpoint_set_shape_fill":
+				result = await handleSetShapeFill(args);
+				break;
+			case "powerpoint_set_shape_line":
+				result = await handleSetShapeLine(args);
+				break;
+			case "powerpoint_set_shape_rotation":
+				result = await handleSetShapeRotation(args);
+				break;
+
+			// Phase 18: Geometric Shapes & Lines
+			case "powerpoint_add_geometric_shape":
+				result = await handleAddGeometricShape(args);
+				break;
+			case "powerpoint_add_line":
+				result = await handleAddLine(args);
+				break;
+
+			// Phase 18: Slide Merge
+			case "powerpoint_insert_slides_from_file":
+				result = await handleInsertSlidesFromFile(args);
+				break;
+
+			// Phase 18: Layouts & Theme
+			case "powerpoint_get_layouts":
+				result = await handleGetLayouts(args);
+				break;
+			case "powerpoint_get_theme_colors":
+				result = await handleGetThemeColors(args);
+				break;
+			case "powerpoint_group_shapes":
+				result = await handleGroupShapes(args);
+				break;
+			case "powerpoint_ungroup_shape":
+				result = await handleUngroupShape(args);
+				break;
 			default:
 				result = { error: `Unknown command: ${commandName}` };
 		}
@@ -1056,3 +1104,333 @@ async function handleMoveSlide(args: unknown): Promise<unknown> {
 		return { fromIndex, toIndex, slideId };
 	});
 }
+
+// ── Phase 18: Tags & Metadata ────────────────────────────────────
+
+async function handleGetTags(args: unknown): Promise<unknown> {
+	const config = args as { target?: string; slideIndex?: number; shapeId?: string };
+	const { target = "presentation", slideIndex, shapeId } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		let tagTarget: any;
+
+		if (target === "slide" && slideIndex !== undefined) {
+			tagTarget = ctx.presentation.slides.getItemAt(slideIndex);
+		} else if (target === "shape" && slideIndex !== undefined && shapeId) {
+			const slide = ctx.presentation.slides.getItemAt(slideIndex);
+			tagTarget = slide.shapes.getItem(shapeId);
+		} else {
+			tagTarget = ctx.presentation;
+		}
+
+		tagTarget.tags.load("items");
+		await ctx.sync();
+
+		const tags: Record<string, string> = {};
+		for (const tag of tagTarget.tags.items) {
+			tag.load(["key", "value"]);
+		}
+		await ctx.sync();
+		for (const tag of tagTarget.tags.items) {
+			tags[tag.key] = tag.value;
+		}
+
+		return { target, tags, count: Object.keys(tags).length };
+	});
+}
+
+async function handleSetTag(args: unknown): Promise<unknown> {
+	const config = args as { key: string; value: string; target?: string; slideIndex?: number; shapeId?: string };
+	const { key, value, target = "presentation", slideIndex, shapeId } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		let tagTarget: any;
+
+		if (target === "slide" && slideIndex !== undefined) {
+			tagTarget = ctx.presentation.slides.getItemAt(slideIndex);
+		} else if (target === "shape" && slideIndex !== undefined && shapeId) {
+			const slide = ctx.presentation.slides.getItemAt(slideIndex);
+			tagTarget = slide.shapes.getItem(shapeId);
+		} else {
+			tagTarget = ctx.presentation;
+		}
+
+		tagTarget.tags.add(key, value);
+		await ctx.sync();
+
+		return { key, value, target, set: true };
+	});
+}
+
+async function handleDeleteSlidesByTag(args: unknown): Promise<unknown> {
+	const config = args as { key: string; value?: string };
+	const { key, value } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const slides = ctx.presentation.slides;
+		slides.load("items");
+		await ctx.sync();
+
+		const toDelete: any[] = [];
+		for (const slide of slides.items) {
+			slide.tags.load("items");
+		}
+		await ctx.sync();
+
+		for (const slide of slides.items) {
+			for (const tag of slide.tags.items) {
+				tag.load(["key", "value"]);
+			}
+		}
+		await ctx.sync();
+
+		for (const slide of slides.items) {
+			for (const tag of slide.tags.items) {
+				if (tag.key === key && (value === undefined || tag.value === value)) {
+					toDelete.push(slide);
+					break;
+				}
+			}
+		}
+
+		for (const slide of toDelete) {
+			slide.delete();
+		}
+		await ctx.sync();
+
+		return { deletedCount: toDelete.length, key, value: value || "any" };
+	});
+}
+
+// ── Phase 18: Shape Fill/Line/Rotation ───────────────────────────
+
+async function handleSetShapeFill(args: unknown): Promise<unknown> {
+	const config = args as { slideIndex: number; shapeId: string; fillType?: string; color?: string; transparency?: number; imageBase64?: string };
+	const { slideIndex, shapeId, fillType = "solid", color, transparency, imageBase64 } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const slide = ctx.presentation.slides.getItemAt(slideIndex);
+		const shape = slide.shapes.getItem(shapeId);
+		const fill = shape.fill;
+
+		if (fillType === "none") {
+			fill.clear();
+		} else if (fillType === "image" && imageBase64) {
+			fill.setImage(imageBase64);
+		} else if (color) {
+			fill.setSolidColor(color);
+		}
+
+		if (transparency !== undefined) {
+			fill.transparency = transparency;
+		}
+
+		await ctx.sync();
+		return { slideIndex, shapeId, fillType, undoable: true };
+	});
+}
+
+async function handleSetShapeLine(args: unknown): Promise<unknown> {
+	const config = args as { slideIndex: number; shapeId: string; color?: string; width?: number; style?: string; visible?: boolean };
+	const { slideIndex, shapeId, color, width, style, visible = true } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const slide = ctx.presentation.slides.getItemAt(slideIndex);
+		const shape = slide.shapes.getItem(shapeId);
+		const line = shape.lineFormat;
+
+		if (color) line.color = color;
+		if (width !== undefined) line.weight = width;
+		if (style) line.style = style;
+		line.visible = visible;
+
+		await ctx.sync();
+		return { slideIndex, shapeId, undoable: true };
+	});
+}
+
+async function handleSetShapeRotation(args: unknown): Promise<unknown> {
+	const config = args as { slideIndex: number; shapeId: string; degrees: number };
+	const { slideIndex, shapeId, degrees } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const slide = ctx.presentation.slides.getItemAt(slideIndex);
+		const shape = slide.shapes.getItem(shapeId);
+		shape.rotation = degrees;
+		await ctx.sync();
+
+		return { slideIndex, shapeId, degrees, undoable: true };
+	});
+}
+
+// ── Phase 18: Geometric Shapes & Lines ──────────────────────────
+
+async function handleAddGeometricShape(args: unknown): Promise<unknown> {
+	const config = args as { slideIndex: number; shapeType: string; left?: number; top?: number; width?: number; height?: number };
+	const { slideIndex, shapeType, left = 100, top = 100, width = 100, height = 100 } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const PowerPoint: any = (window as any).PowerPoint;
+		const slide = ctx.presentation.slides.getItemAt(slideIndex);
+		const shape = slide.shapes.addGeometricShape(PowerPoint.GeometricShapeType[shapeType] || shapeType, { left, top, width, height });
+		shape.load(["id", "name"]);
+		await ctx.sync();
+
+		return { slideIndex, shapeId: shape.id, shapeName: shape.name, shapeType, undoable: true };
+	});
+}
+
+async function handleAddLine(args: unknown): Promise<unknown> {
+	const config = args as { slideIndex: number; startX: number; startY: number; endX: number; endY: number; connectorType?: string };
+	const { slideIndex, startX, startY, endX, endY, connectorType = "straight" } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const PowerPoint: any = (window as any).PowerPoint;
+		const slide = ctx.presentation.slides.getItemAt(slideIndex);
+		const connector = PowerPoint.ConnectorType[connectorType] || connectorType;
+		const shape = slide.shapes.addLine(connector, { left: startX, top: startY, width: endX - startX, height: endY - startY });
+		shape.load(["id", "name"]);
+		await ctx.sync();
+
+		return { slideIndex, shapeId: shape.id, shapeName: shape.name, undoable: true };
+	});
+}
+
+// ── Phase 18: Slide Merge ─────────────────────────────────────────
+
+async function handleInsertSlidesFromFile(args: unknown): Promise<unknown> {
+	const config = args as { base64File: string; insertAfterSlideIndex?: number; slideIndexes?: string; formatting?: string };
+	const { base64File, insertAfterSlideIndex, slideIndexes, formatting = "useDestinationTheme" } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const PowerPoint: any = (window as any).PowerPoint;
+		const pres = ctx.presentation;
+
+		const options: any = {};
+		if (formatting === "keepSourceFormatting") {
+			options.formatting = PowerPoint.InsertSlideFormatting.keepSourceFormatting;
+		} else {
+			options.formatting = PowerPoint.InsertSlideFormatting.useDestinationTheme;
+		}
+
+		if (insertAfterSlideIndex !== undefined) {
+			pres.slides.load("items");
+			await ctx.sync();
+			const targetSlide = pres.slides.items[insertAfterSlideIndex];
+			if (targetSlide) {
+				targetSlide.load("id");
+				await ctx.sync();
+				options.targetSlideId = targetSlide.id;
+			}
+		}
+
+		if (slideIndexes) {
+			options.sourceSlideIds = slideIndexes.split(",").map((s: string) => s.trim());
+		}
+
+		pres.insertSlidesFromBase64(base64File, options);
+		await ctx.sync();
+
+		return { inserted: true, formatting, undoable: true };
+	});
+}
+
+// ── Phase 18: Layouts & Theme ─────────────────────────────────────
+
+async function handleGetLayouts(_args: unknown): Promise<unknown> {
+	return runInPowerPoint(async (ctx) => {
+		const masters = ctx.presentation.slideMasters;
+		masters.load("items");
+		await ctx.sync();
+
+		const layouts: any[] = [];
+		for (const master of masters.items) {
+			master.load("name");
+			master.layouts.load("items");
+		}
+		await ctx.sync();
+
+		for (const master of masters.items) {
+			for (const layout of master.layouts.items) {
+				layout.load(["id", "name"]);
+			}
+		}
+		await ctx.sync();
+
+		for (const master of masters.items) {
+			for (const layout of master.layouts.items) {
+				layouts.push({ id: layout.id, name: layout.name, master: master.name });
+			}
+		}
+
+		return { layouts, count: layouts.length };
+	});
+}
+
+async function handleGetThemeColors(_args: unknown): Promise<unknown> {
+	return runInPowerPoint(async (ctx) => {
+		const masters = ctx.presentation.slideMasters;
+		masters.load("items");
+		await ctx.sync();
+
+		if (masters.items.length === 0) return { colors: {}, count: 0 };
+
+		const master = masters.items[0];
+		const theme = master.themeColorScheme;
+		theme.load(["name", "dark1", "light1", "dark2", "light2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hyperlink", "followedHyperlink"]);
+		await ctx.sync();
+
+		return {
+			themeName: theme.name,
+			colors: {
+				dark1: theme.dark1,
+				light1: theme.light1,
+				dark2: theme.dark2,
+				light2: theme.light2,
+				accent1: theme.accent1,
+				accent2: theme.accent2,
+				accent3: theme.accent3,
+				accent4: theme.accent4,
+				accent5: theme.accent5,
+				accent6: theme.accent6,
+				hyperlink: theme.hyperlink,
+				followedHyperlink: theme.followedHyperlink,
+			},
+		};
+	});
+}
+
+async function handleGroupShapes(args: unknown): Promise<unknown> {
+	const config = args as { slideIndex: number; shapeIds: string };
+	const { slideIndex, shapeIds } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const slide = ctx.presentation.slides.getItemAt(slideIndex);
+		const ids = shapeIds.split(",").map((s: string) => s.trim());
+		const shapes: any[] = [];
+		for (const id of ids) {
+			shapes.push(slide.shapes.getItem(id));
+		}
+
+		const group = slide.shapes.addGroup(shapes);
+		group.load(["id", "name"]);
+		await ctx.sync();
+
+		return { slideIndex, groupId: group.id, groupName: group.name, undoable: true };
+	});
+}
+
+async function handleUngroupShape(args: unknown): Promise<unknown> {
+	const config = args as { slideIndex: number; shapeId: string };
+	const { slideIndex, shapeId } = config;
+
+	return runInPowerPoint(async (ctx) => {
+		const slide = ctx.presentation.slides.getItemAt(slideIndex);
+		const shape = slide.shapes.getItem(shapeId);
+		shape.group.ungroup();
+		await ctx.sync();
+
+		return { slideIndex, shapeId, ungrouped: true, undoable: true };
+	});
+}
+

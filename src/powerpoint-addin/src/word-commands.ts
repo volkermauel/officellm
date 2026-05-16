@@ -90,6 +90,45 @@ export async function processCommand(
 			case "word_find_replace":
 				result = await handleFindReplace(args);
 				break;
+			case "word_get_bookmarks":
+				result = await handleGetBookmarks(args);
+				break;
+			case "word_insert_bookmark":
+				result = await handleInsertBookmark(args);
+				break;
+			case "word_delete_bookmark":
+				result = await handleDeleteBookmark(args);
+				break;
+			case "word_goto_bookmark":
+				result = await handleGotoBookmark(args);
+				break;
+			case "word_get_properties":
+				result = await handleGetProperties(args);
+				break;
+			case "word_set_properties":
+				result = await handleSetProperties(args);
+				break;
+			case "word_get_hyperlinks":
+				result = await handleGetHyperlinks(args);
+				break;
+			case "word_insert_hyperlink":
+				result = await handleInsertHyperlink(args);
+				break;
+			case "word_insert_footnote":
+				result = await handleInsertFootnote(args);
+				break;
+			case "word_insert_endnote":
+				result = await handleInsertEndnote(args);
+				break;
+			case "word_insert_field":
+				result = await handleInsertField(args);
+				break;
+			case "word_get_content_controls":
+				result = await handleGetContentControls(args);
+				break;
+			case "word_insert_content_control":
+				result = await handleInsertContentControl(args);
+				break;
 			default:
 				result = { error: `Unknown Word command: ${commandName}` };
 		}
@@ -122,8 +161,6 @@ function runInWord<T>(fn: (ctx: any) => Promise<T>): Promise<T> {
 		}).catch(reject);
 	});
 }
-
-
 
 // ── Read tools ──────────────────────────────────────────────────
 
@@ -931,7 +968,7 @@ async function handleInsertList(args: unknown): Promise<unknown> {
 			inserted: true,
 			tracked: true,
 		};
-});
+	});
 }
 
 // ── Phase 14: Find & Replace ──────────────────────────────────────
@@ -1016,7 +1053,9 @@ async function handleFindReplace(args: unknown): Promise<unknown> {
 
 		// Perform replacements with tracked changes
 		if (!previewOnly) {
-			ctx.document.changeTrackingMode = (Word as any).ChangeTrackingMode.trackMineOnly;
+			ctx.document.changeTrackingMode = (
+				Word as any
+			).ChangeTrackingMode.trackMineOnly;
 		}
 
 		const matchCount = searchResults.items.length;
@@ -1035,5 +1074,305 @@ async function handleFindReplace(args: unknown): Promise<unknown> {
 			findText,
 			tracked: true,
 		};
+	});
+}
+
+// ── Phase 18: Bookmarks ──────────────────────────────────────────
+
+async function handleGetBookmarks(_args: unknown): Promise<unknown> {
+	return runInWord(async (ctx: any) => {
+		const bookmarks = ctx.document.bookmarks;
+		bookmarks.load("items");
+		await ctx.sync();
+
+		const result: any[] = [];
+		for (const bm of bookmarks.items) {
+			bm.load(["name"]);
+		}
+		await ctx.sync();
+		for (const bm of bookmarks.items) {
+			result.push({ name: bm.name });
+		}
+
+		return { bookmarks: result, count: result.length };
+	});
+}
+
+async function handleInsertBookmark(args: unknown): Promise<unknown> {
+	const config = args as { name: string; fromParagraph: number; toParagraph?: number };
+	const { name, fromParagraph, toParagraph } = config;
+
+	return runInWord(async (ctx: any) => {
+		const paras = ctx.document.body.paragraphs;
+		paras.load("items");
+		await ctx.sync();
+
+		const end = toParagraph ?? fromParagraph;
+		const startPara = paras.items[Math.max(0, fromParagraph)];
+		const endPara = paras.items[Math.min(end, paras.items.length - 1)];
+		const startRange = startPara.getRange("Start");
+		const endRange = endPara.getRange("End");
+		const range = startRange.expandTo(endRange);
+		range.insertBookmark(name);
+		await ctx.sync();
+
+		return { name, fromParagraph, toParagraph: end, inserted: true };
+	});
+}
+
+async function handleDeleteBookmark(args: unknown): Promise<unknown> {
+	const config = args as { name: string };
+	const { name } = config;
+
+	return runInWord(async (ctx: any) => {
+		ctx.document.deleteBookmark(name);
+		await ctx.sync();
+		return { name, deleted: true };
+	});
+}
+
+async function handleGotoBookmark(args: unknown): Promise<unknown> {
+	const config = args as { name: string };
+	const { name } = config;
+
+	return runInWord(async (ctx: any) => {
+		const range = ctx.document.getBookmarkRange(name);
+		range.load("text");
+		await ctx.sync();
+		return { name, text: range.text };
+	});
+}
+
+// ── Phase 18: Document Properties ────────────────────────────────
+
+async function handleGetProperties(_args: unknown): Promise<unknown> {
+	return runInWord(async (ctx: any) => {
+		const props = ctx.document.builtInDocumentProperties;
+		props.load(["title", "author", "subject", "keywords", "category", "company", "manager", "comments", "creationDate", "lastSaveTime", "revisionNumber"]);
+		await ctx.sync();
+
+		return {
+			title: props.title || "",
+			author: props.author || "",
+			subject: props.subject || "",
+			keywords: props.keywords || "",
+			category: props.category || "",
+			company: props.company || "",
+			manager: props.manager || "",
+			comments: props.comments || "",
+			creationDate: props.creationDate?.toISOString?.() || "",
+			lastSaveTime: props.lastSaveTime?.toISOString?.() || "",
+			revisionNumber: props.revisionNumber || "",
+		};
+	});
+}
+
+async function handleSetProperties(args: unknown): Promise<unknown> {
+	const config = args as { title?: string; author?: string; subject?: string; keywords?: string; category?: string; company?: string; manager?: string; comments?: string };
+	return runInWord(async (ctx: any) => {
+		const props = ctx.document.builtInDocumentProperties;
+		if (config.title !== undefined) props.title = config.title;
+		if (config.author !== undefined) props.author = config.author;
+		if (config.subject !== undefined) props.subject = config.subject;
+		if (config.keywords !== undefined) props.keywords = config.keywords;
+		if (config.category !== undefined) props.category = config.category;
+		if (config.company !== undefined) props.company = config.company;
+		if (config.manager !== undefined) props.manager = config.manager;
+		if (config.comments !== undefined) props.comments = config.comments;
+		await ctx.sync();
+		return { updated: true };
+	});
+}
+
+// ── Phase 18: Hyperlinks ──────────────────────────────────────────
+
+async function handleGetHyperlinks(_args: unknown): Promise<unknown> {
+	return runInWord(async (ctx: any) => {
+		const hyperlinks = ctx.document.hyperlinks;
+		hyperlinks.load("items");
+		await ctx.sync();
+
+		const result: any[] = [];
+		for (const hl of hyperlinks.items) {
+			hl.load(["address", "screenTip"]);
+			const range = hl.getRange();
+			range.load("text");
+		}
+		await ctx.sync();
+		for (const hl of hyperlinks.items) {
+			const range = hl.getRange();
+			result.push({ address: hl.address, text: range.text });
+		}
+
+		return { hyperlinks: result, count: result.length };
+	});
+}
+
+async function handleInsertHyperlink(args: unknown): Promise<unknown> {
+	const config = args as { text: string; url: string; paragraphIndex?: number };
+	const { text, url, paragraphIndex } = config;
+
+	return runInWord(async (ctx: any) => {
+		const Word: any = (window as any).Word;
+		const originalMode = ctx.document.changeTrackingMode;
+		ctx.document.changeTrackingMode = Word.ChangeTrackingMode.trackMineOnly;
+
+		let range: any;
+		if (paragraphIndex !== undefined) {
+			const paras = ctx.document.body.paragraphs;
+			paras.load("items");
+			await ctx.sync();
+			const para = paras.items[Math.min(paragraphIndex, paras.items.length - 1)];
+			range = para.getRange("End");
+		} else {
+			range = ctx.document.body.getRange("End");
+		}
+
+		const insertedRange = range.insertText(text, "After");
+		insertedRange.hyperlink = url;
+		await ctx.sync();
+
+		ctx.document.changeTrackingMode = originalMode;
+		await ctx.sync();
+
+		return { text, url, inserted: true, tracked: true };
+	});
+}
+
+// ── Phase 18: Footnotes/Endnotes & Fields ────────────────────────
+
+async function handleInsertFootnote(args: unknown): Promise<unknown> {
+	const config = args as { paragraphIndex: number; text: string };
+	return runInWord(async (ctx: any) => {
+		const Word: any = (window as any).Word;
+		const originalMode = ctx.document.changeTrackingMode;
+		ctx.document.changeTrackingMode = Word.ChangeTrackingMode.trackMineOnly;
+
+		const paras = ctx.document.body.paragraphs;
+		paras.load("items");
+		await ctx.sync();
+		const para = paras.items[Math.min(config.paragraphIndex, paras.items.length - 1)];
+		const range = para.getRange("End");
+		range.insertFootnote(config.text);
+		await ctx.sync();
+
+		ctx.document.changeTrackingMode = originalMode;
+		await ctx.sync();
+		return { paragraphIndex: config.paragraphIndex, inserted: true, tracked: true };
+	});
+}
+
+async function handleInsertEndnote(args: unknown): Promise<unknown> {
+	const config = args as { paragraphIndex: number; text: string };
+	return runInWord(async (ctx: any) => {
+		const Word: any = (window as any).Word;
+		const originalMode = ctx.document.changeTrackingMode;
+		ctx.document.changeTrackingMode = Word.ChangeTrackingMode.trackMineOnly;
+
+		const paras = ctx.document.body.paragraphs;
+		paras.load("items");
+		await ctx.sync();
+		const para = paras.items[Math.min(config.paragraphIndex, paras.items.length - 1)];
+		const range = para.getRange("End");
+		range.insertEndnote(config.text);
+		await ctx.sync();
+
+		ctx.document.changeTrackingMode = originalMode;
+		await ctx.sync();
+		return { paragraphIndex: config.paragraphIndex, inserted: true, tracked: true };
+	});
+}
+
+async function handleInsertField(args: unknown): Promise<unknown> {
+	const config = args as { fieldType: string; paragraphIndex?: number };
+	const { fieldType, paragraphIndex } = config;
+
+	return runInWord(async (ctx: any) => {
+		const Word: any = (window as any).Word;
+		const originalMode = ctx.document.changeTrackingMode;
+		ctx.document.changeTrackingMode = Word.ChangeTrackingMode.trackMineOnly;
+
+		let range: any;
+		if (paragraphIndex !== undefined) {
+			const paras = ctx.document.body.paragraphs;
+			paras.load("items");
+			await ctx.sync();
+			range = paras.items[Math.min(paragraphIndex, paras.items.length - 1)].getRange("End");
+		} else {
+			range = ctx.document.body.getRange("End");
+		}
+
+		// Map field type to enum
+		const fieldMap: Record<string, string> = {
+			TableOfContents: "TableOfContents",
+			PageNumber: "Page",
+			NumPages: "NumPages",
+			Date: "Date",
+			Time: "Time",
+			FileName: "FileName",
+			Author: "Author",
+		};
+		const ft = fieldMap[fieldType] || fieldType;
+		range.insertField("End", ft);
+		await ctx.sync();
+
+		ctx.document.changeTrackingMode = originalMode;
+		await ctx.sync();
+		return { fieldType, inserted: true, tracked: true };
+	});
+}
+
+// ── Phase 18: Content Controls ───────────────────────────────────
+
+async function handleGetContentControls(_args: unknown): Promise<unknown> {
+	return runInWord(async (ctx: any) => {
+		const ccs = ctx.document.contentControls;
+		ccs.load("items");
+		await ctx.sync();
+
+		const result: any[] = [];
+		for (const cc of ccs.items) {
+			cc.load(["title", "tag"]);
+			const range = cc.getRange("Whole");
+			range.load("text");
+		}
+		await ctx.sync();
+		for (const cc of ccs.items) {
+			const range = cc.getRange("Whole");
+			result.push({ title: cc.title || "", tag: cc.tag || "", text: range.text });
+		}
+
+		return { contentControls: result, count: result.length };
+	});
+}
+
+async function handleInsertContentControl(args: unknown): Promise<unknown> {
+	const config = args as { title: string; tag?: string; fromParagraph: number; toParagraph?: number };
+	const { title, tag, fromParagraph, toParagraph } = config;
+
+	return runInWord(async (ctx: any) => {
+		const Word: any = (window as any).Word;
+		const originalMode = ctx.document.changeTrackingMode;
+		ctx.document.changeTrackingMode = Word.ChangeTrackingMode.trackMineOnly;
+
+		const paras = ctx.document.body.paragraphs;
+		paras.load("items");
+		await ctx.sync();
+
+		const end = toParagraph ?? fromParagraph;
+		const startPara = paras.items[Math.max(0, fromParagraph)];
+		const endPara = paras.items[Math.min(end, paras.items.length - 1)];
+		const startRange = startPara.getRange("Start");
+		const endRange = endPara.getRange("End");
+		const range = startRange.expandTo(endRange);
+
+		const cc = range.insertContentControl();
+		cc.title = title;
+		if (tag) cc.tag = tag;
+		await ctx.sync();
+
+		ctx.document.changeTrackingMode = originalMode;
+		await ctx.sync();
+		return { title, tag: tag || "", fromParagraph, toParagraph: end, inserted: true, tracked: true };
 	});
 }

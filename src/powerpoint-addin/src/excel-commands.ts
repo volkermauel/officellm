@@ -87,6 +87,18 @@ export async function processCommand(
 			case "excel_remove_data_validation":
 				result = await handleRemoveDataValidation(args);
 				break;
+			case "excel_protect_sheet":
+				result = await handleProtectSheet(args);
+				break;
+			case "excel_unprotect_sheet":
+				result = await handleUnprotectSheet(args);
+				break;
+			case "excel_set_page_layout":
+				result = await handleSetPageLayout(args);
+				break;
+			case "excel_get_page_layout":
+				result = await handleGetPageLayout(args);
+				break;
 			default:
 				result = { error: `Unknown Excel command: ${commandName}` };
 		}
@@ -1034,7 +1046,12 @@ async function handleGetNamedRanges(_args: unknown): Promise<unknown> {
 }
 
 async function handleAddNamedRange(args: unknown): Promise<unknown> {
-	const config = args as { name: string; sheetName: string; address: string; comment?: string };
+	const config = args as {
+		name: string;
+		sheetName: string;
+		address: string;
+		comment?: string;
+	};
 	const { name, sheetName, address, comment } = config;
 
 	return runInExcel(async (ctx) => {
@@ -1044,7 +1061,14 @@ async function handleAddNamedRange(args: unknown): Promise<unknown> {
 		ctx.workbook.names.add(name, range, comment || "");
 		await ctx.sync();
 
-		return { name, sheetName, address, comment: comment || "", created: true, undoable: true };
+		return {
+			name,
+			sheetName,
+			address,
+			comment: comment || "",
+			created: true,
+			undoable: true,
+		};
 	});
 }
 
@@ -1132,7 +1156,14 @@ async function handleAddDataValidation(args: unknown): Promise<unknown> {
 		}
 
 		await ctx.sync();
-		return { sheetName, address, type, operator, applied: true, undoable: true };
+		return {
+			sheetName,
+			address,
+			type,
+			operator,
+			applied: true,
+			undoable: true,
+		};
 	});
 }
 
@@ -1150,3 +1181,89 @@ async function handleRemoveDataValidation(args: unknown): Promise<unknown> {
 	});
 }
 
+// ── Phase 18: Excel Protection ───────────────────────────────────
+
+async function handleProtectSheet(args: unknown): Promise<unknown> {
+	const config = args as {
+		sheetName: string; password?: string;
+		allowSort?: boolean; allowAutoFilter?: boolean;
+		allowInsertRows?: boolean; allowInsertColumns?: boolean;
+		allowDeleteRows?: boolean; allowDeleteColumns?: boolean;
+		allowFormatCells?: boolean; allowPivotTables?: boolean;
+	};
+	const { sheetName, password, allowSort, allowAutoFilter, allowInsertRows, allowInsertColumns, allowDeleteRows, allowDeleteColumns, allowFormatCells, allowPivotTables } = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+		const options: any = {};
+		if (allowSort !== undefined) options.allowSort = allowSort;
+		if (allowAutoFilter !== undefined) options.allowAutoFilter = allowAutoFilter;
+		if (allowInsertRows !== undefined) options.allowInsertRows = allowInsertRows;
+		if (allowInsertColumns !== undefined) options.allowInsertColumns = allowInsertColumns;
+		if (allowDeleteRows !== undefined) options.allowDeleteRows = allowDeleteRows;
+		if (allowDeleteColumns !== undefined) options.allowDeleteColumns = allowDeleteColumns;
+		if (allowFormatCells !== undefined) options.allowFormatCells = allowFormatCells;
+		if (allowPivotTables !== undefined) options.allowPivotTables = allowPivotTables;
+		sheet.protection.protect(options, password || "");
+		await ctx.sync();
+		return { sheetName, protected: true };
+	});
+}
+
+async function handleUnprotectSheet(args: unknown): Promise<unknown> {
+	const config = args as { sheetName: string; password?: string };
+	const { sheetName, password } = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+		sheet.protection.unprotect(password || "");
+		await ctx.sync();
+		return { sheetName, unprotected: true };
+	});
+}
+
+// ── Phase 18: Excel Page Layout ──────────────────────────────────
+
+async function handleSetPageLayout(args: unknown): Promise<unknown> {
+	const config = args as {
+		sheetName: string; orientation?: string; paperSize?: string;
+		printArea?: string; printTitleRows?: string;
+		centerHorizontally?: boolean; centerVertically?: boolean;
+	};
+	const { sheetName, orientation, paperSize, printArea, printTitleRows, centerHorizontally, centerVertically } = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+		const layout = sheet.pageLayout;
+
+		if (orientation) layout.orientation = orientation;
+		if (paperSize) layout.paperSize = paperSize;
+		if (printArea) layout.setPrintArea(printArea);
+		if (printTitleRows) layout.setPrintTitleRows(printTitleRows);
+		if (centerHorizontally !== undefined) layout.centerHorizontally = centerHorizontally;
+		if (centerVertically !== undefined) layout.centerVertically = centerVertically;
+
+		await ctx.sync();
+		return { sheetName, set: true, undoable: true };
+	});
+}
+
+async function handleGetPageLayout(args: unknown): Promise<unknown> {
+	const config = args as { sheetName: string };
+	const { sheetName } = config;
+
+	return runInExcel(async (ctx) => {
+		const sheet = ctx.workbook.worksheets.getItem(sheetName);
+		const layout = sheet.pageLayout;
+		layout.load(["orientation", "paperSize", "centerHorizontally", "centerVertically"]);
+		await ctx.sync();
+
+		return {
+			sheetName,
+			orientation: layout.orientation,
+			paperSize: layout.paperSize,
+			centerHorizontally: layout.centerHorizontally,
+			centerVertically: layout.centerVertically,
+		};
+	});
+}

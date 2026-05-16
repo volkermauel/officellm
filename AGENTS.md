@@ -133,7 +133,7 @@ When working with the Word JavaScript API in the add-in:
 - **`getTextFrameOrNullObject` equivalent** — Word has no direct equivalent. Use `range.getHtml()` or `range.getText()` to read content. For null-safe patterns, check `range.isNullObject` after `context.sync()`.
 - **Range-based operations** — Word operates on `Range` objects. Get the current selection via `context.document.getSelection()`, then manipulate it as a range.
 
-### Tool Inventory (77 tools)
+### Tool Inventory (107 tools)
 
 | #   | Tool Name                            | Host       | Category        |
 | --- | ------------------------------------ | ---------- | --------------- |
@@ -214,6 +214,37 @@ When working with the Word JavaScript API in the add-in:
 | 75  | `excel_add_named_range`              | Excel      | Write           |
 | 76  | `excel_add_data_validation`          | Excel      | Write           |
 | 77  | `excel_remove_data_validation`       | Excel      | Write           |
+| 78  | `powerpoint_get_tags`                | PowerPoint | Read            |
+| 79  | `powerpoint_set_tag`                 | PowerPoint | Write           |
+| 80  | `powerpoint_delete_slides_by_tag`    | PowerPoint | Write           |
+| 81  | `powerpoint_set_shape_fill`          | PowerPoint | Write           |
+| 82  | `powerpoint_set_shape_line`          | PowerPoint | Write           |
+| 83  | `powerpoint_set_shape_rotation`      | PowerPoint | Write           |
+| 84  | `powerpoint_add_geometric_shape`     | PowerPoint | Write           |
+| 85  | `powerpoint_add_line`                | PowerPoint | Write           |
+| 86  | `powerpoint_insert_slides_from_file` | PowerPoint | Write           |
+| 87  | `powerpoint_get_layouts`             | PowerPoint | Read            |
+| 88  | `powerpoint_get_theme_colors`        | PowerPoint | Read            |
+| 89  | `powerpoint_group_shapes`            | PowerPoint | Write           |
+| 90  | `powerpoint_ungroup_shape`           | PowerPoint | Write           |
+| 91  | `word_get_bookmarks`                 | Word       | Read            |
+| 92  | `word_insert_bookmark`               | Word       | Write (tracked) |
+| 93  | `word_delete_bookmark`               | Word       | Write           |
+| 94  | `word_goto_bookmark`                 | Word       | Read            |
+| 95  | `word_get_properties`                | Word       | Read            |
+| 96  | `word_set_properties`                | Word       | Write           |
+| 97  | `word_get_hyperlinks`                | Word       | Read            |
+| 98  | `word_insert_hyperlink`              | Word       | Write (tracked) |
+| 99  | `word_insert_footnote`               | Word       | Write (tracked) |
+| 100 | `word_insert_endnote`                | Word       | Write (tracked) |
+| 101 | `word_insert_field`                  | Word       | Write (tracked) |
+| 102 | `word_get_content_controls`          | Word       | Read            |
+| 103 | `word_insert_content_control`        | Word       | Write (tracked) |
+| 104 | `excel_protect_sheet`                | Excel      | Write           |
+| 105 | `excel_unprotect_sheet`              | Excel      | Write           |
+| 106 | `excel_set_page_layout`              | Excel      | Write           |
+| 107 | `excel_get_page_layout`              | Excel      | Read            |
+
 **Mutation modes by host**:
 
 - **Word**: Tracked changes (`changeTrackingMode: "TrackMineOnly"`) — user accepts/rejects via Word Review ribbon or tracked change tools. No confirmation gate needed.
