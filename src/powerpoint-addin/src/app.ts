@@ -10,6 +10,9 @@ import {
 	startHeartbeat,
 	pollForCommands,
 	getOfficeState,
+	connectSignalR,
+	setCommandHandler,
+	onConnectionStateChange,
 } from "./communication";
 import { processCommand as processPptCommand } from "./powerpoint-commands";
 import { processCommand as processWordCommand } from "./word-commands";
@@ -76,7 +79,29 @@ async function initWithMcp(): Promise<void> {
 		// Start heartbeat
 		startHeartbeat(10000);
 
-		// Start command polling — actually processes commands each poll
+		// Set up command handler for SignalR
+		setCommandHandler(async (commandId, commandName, args) => {
+			addLogEntry(`[SignalR] Executing: ${commandName}`);
+			const result = await processCommand(commandId, commandName, args);
+			addLogEntry(`[SignalR] Command ${commandId} completed`);
+			return result;
+		});
+
+		// Monitor connection state
+		onConnectionStateChange((state) => {
+			if (state === "connected") {
+				updateMcpStatus(true, "Connected (SignalR)");
+			} else if (state === "reconnecting") {
+				updateMcpStatus(false, "Reconnecting...");
+			} else {
+				updateMcpStatus(true, "Connected (HTTP polling)");
+			}
+		});
+
+		// Connect SignalR (falls back to HTTP polling automatically)
+		await connectSignalR();
+
+		// Always start HTTP polling as fallback (commands may arrive while reconnecting)
 		setInterval(() => processPendingCommands(), 2000);
 
 		console.log(`Add-in registered as: ${instanceId}`);

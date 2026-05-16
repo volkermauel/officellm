@@ -115,4 +115,34 @@ public class InstanceRegistryTests
         Assert.Single(active);
         Assert.Equal(id1, active[0].InstanceId);
     }
+
+    [Fact]
+    public void RegisterInstance_HostSpecificPrefixes()
+    {
+        var registry = new InstanceRegistry();
+        var ppt = registry.RegisterInstance("PowerPoint", "deck.pptx");
+        var word = registry.RegisterInstance("Word", "doc.docx");
+        var excel = registry.RegisterInstance("Excel", "sheet.xlsx");
+        var outlook = registry.RegisterInstance("Outlook", "inbox");
+        var unknown = registry.RegisterInstance("CustomApp", "test");
+
+        Assert.Equal("powerpoint_1", ppt);
+        Assert.Equal("word_2", word);
+        Assert.Equal("excel_3", excel);
+        Assert.Equal("outlook_4", outlook);
+        Assert.Equal("office_5", unknown);
+    }
+
+    [Fact]
+    public void RegisterInstance_MixedHosts_IncrementCorrectly()
+    {
+        var registry = new InstanceRegistry();
+        var id1 = registry.RegisterInstance("PowerPoint", "a.pptx");
+        var id2 = registry.RegisterInstance("Word", "b.docx");
+        var id3 = registry.RegisterInstance("PowerPoint", "c.pptx");
+
+        Assert.Equal("powerpoint_1", id1);
+        Assert.Equal("word_2", id2);
+        Assert.Equal("powerpoint_3", id3);
+    }
 }

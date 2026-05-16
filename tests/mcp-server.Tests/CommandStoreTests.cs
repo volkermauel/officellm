@@ -134,6 +134,68 @@ public class CommandStoreTests
         store.CompleteCommand("nonexistent", true, "", null);
     }
 
+    [Fact]
+    public async Task AddCommand_CreatesTaskCompletionSource()
+    {
+        var store = new CommandStore();
+        var cmd = CreateCommand("c1", "powerpoint_1", "tool_a");
+        store.AddCommand(cmd);
+
+        // Complete from another logical thread
+        _ = Task.Run(() => store.CompleteCommand("c1", true, "", new { ok = true }));
+
+        var result = await store.WaitForResult("c1", timeoutSeconds: 2);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+    }
+
+    [Fact]
+    public async Task WaitForResult_TaskCompletionSource_ResolveInstantly()
+    {
+        var store = new CommandStore();
+        store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
+
+        // Complete before waiting
+        store.CompleteCommand("c1", true, "", new { data = 42 });
+
+        var result = await store.WaitForResult("c1", timeoutSeconds: 1);
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+    }
+
+    [Fact]
+    public void GetPendingCommand_ReturnsUnclaimed()
+    {
+        var store = new CommandStore();
+        store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
+
+        var cmd = store.GetPendingCommand("powerpoint_1", "c1");
+        Assert.NotNull(cmd);
+        Assert.Equal("c1", cmd.Id);
+        Assert.Equal("powerpoint_1", cmd.ClaimedBy);
+    }
+
+    [Fact]
+    public void GetPendingCommand_ReturnsNull_ForWrongInstance()
+    {
+        var store = new CommandStore();
+        store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
+
+        var cmd = store.GetPendingCommand("word_2", "c1");
+        Assert.Null(cmd);
+    }
+
+    [Fact]
+    public void GetPendingCommand_ReturnsNull_WhenCompleted()
+    {
+        var store = new CommandStore();
+        store.AddCommand(CreateCommand("c1", "powerpoint_1", "tool_a"));
+        store.CompleteCommand("c1", true, "", null);
+
+        var cmd = store.GetPendingCommand("powerpoint_1", "c1");
+        Assert.Null(cmd);
+    }
+
     private static PendingCommand CreateCommand(string id, string instanceId, string command)
     {
         return new PendingCommand

@@ -5,7 +5,8 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.DependencyInjection;
 using OfficeMcpServer.Models;
 using OfficeMcpServer.Tools;
-
+using OfficeMcpServer.Hubs;
+using Microsoft.AspNetCore.SignalR;
 namespace OfficeMcpServer;
 
 /// <summary>
@@ -55,6 +56,9 @@ public static class AppBuilder
                       .AllowAnyMethod();
             });
         });
+
+        // SignalR for real-time command delivery
+        builder.Services.AddSignalR();
 
         var app = builder.Build();
         app.UseCors("AllowedOrigins");
@@ -239,6 +243,16 @@ public static class AppBuilder
             var activeCount = registry.GetActiveInstances().Count;
             return Results.Json(new { status = "ok", activeInstances = activeCount });
         });
+
+        // ============================================================
+        // SIGNALR HUB
+        // ============================================================
+
+        app.MapHub<CommandHub>("/hubs/commands");
+
+        // Wire SignalR hub context into McpToolEngine for command push
+        var hubContext = app.Services.GetRequiredService<IHubContext<CommandHub>>();
+        McpToolEngine.SetHubContext(hubContext);
 
         // ============================================================
         // OPENAPI REST BRIDGE

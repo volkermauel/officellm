@@ -2,13 +2,42 @@
  * Communication module for the Office JS Add-in.
  * Connects TO the MCP server — registers as an instance,
  * polls for commands, and reports results.
+ * Supports both SignalR (WebSocket) and HTTP polling fallback.
  */
+
+import * as signalR from "@microsoft/signalr";
 
 export const MCP_SERVER_URL = "http://127.0.0.1:3000";
 
 // --- State ---
 let instanceId: string | null = null;
+let hubConnection: signalR.HubConnection | null = null;
 
+export type ConnectionState = "connected" | "reconnecting" | "fallback";
+
+let _connectionState: ConnectionState = "fallback";
+let _onConnectionStateChange: ((state: ConnectionState) => void) | null = null;
+
+/**
+ * Sets a callback for connection state changes (used by task pane UI).
+ */
+export function onConnectionStateChange(
+	callback: (state: ConnectionState) => void,
+): void {
+	_onConnectionStateChange = callback;
+}
+
+function setConnectionState(state: ConnectionState): void {
+	_connectionState = state;
+	_onConnectionStateChange?.(state);
+}
+
+/**
+ * Returns current connection state.
+ */
+export function getConnectionState(): ConnectionState {
+	return _connectionState;
+}
 // ============================================================
 // INSTANCE REGISTRATION & HEARTBEAT
 // ============================================================
@@ -35,6 +64,111 @@ export async function registerWithMcp(
 	instanceId = data.instanceId ?? "";
 	console.log(`Registered with MCP server: ${instanceId}`);
 	return instanceId!;
+}
+
+// ============================================================
+// SIGNALR CONNECTION
+// ============================================================
+
+export type CommandHandler = (
+	commandId: string,
+	commandName: string,
+	args: unknown,
+) => Promise<unknown>;
+
+let _commandHandler: CommandHandler | null = null;
+
+/**
+ * Sets the command handler for incoming SignalR commands.
+ */
+export function setCommandHandler(handler: CommandHandler): void {
+	_commandHandler = handler;
+}
+
+/**
+ * Connects to the SignalR hub for real-time command delivery.
+ * Falls back to HTTP polling if WebSocket fails.
+ */
+export async function connectSignalR(): Promise<void> {
+	if (!instanceId) return;
+
+	const connection = new signalR.HubConnectionBuilder()
+		.withUrl(`${MCP_SERVER_URL}/hubs/commands`)
+		.withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+		.configureLogging(signalR.LogLevel.Warning)
+		.build();
+
+	// Handle incoming commands from server
+	connection.on(
+		"ExecuteCommand",
+		async (commandId: string, commandName: string, args: unknown) => {
+			console.log(`SignalR: Received command ${commandName} (${commandId})`);
+			if (_commandHandler) {
+				try {
+					const result = await _commandHandler(commandId, commandName, args);
+					// Report result back via SignalR
+					const success = !(
+						result &&
+						typeof result === "object" &&
+						"error" in (result as any)
+					);
+					const error = success ? undefined : ((result as any).error as string);
+					await connection.invoke(
+						"ReportResult",
+						commandId,
+						success,
+						error,
+						result,
+					);
+				} catch (err) {
+					const errMsg = err instanceof Error ? err.message : String(err);
+					await connection.invoke(
+						"ReportResult",
+						commandId,
+						false,
+						errMsg,
+						null,
+					);
+				}
+			}
+		},
+	);
+
+	connection.onreconnecting(() => {
+		console.log("SignalR: Reconnecting...");
+		setConnectionState("reconnecting");
+	});
+
+	connection.onreconnected(() => {
+		console.log("SignalR: Reconnected");
+		setConnectionState("connected");
+		// Re-join the instance group after reconnect
+		connection
+			.invoke("JoinGroup", instanceId)
+			.catch((err: unknown) =>
+				console.warn("SignalR: Failed to rejoin group:", err),
+			);
+	});
+
+	connection.onclose(() => {
+		console.log("SignalR: Connection closed");
+		setConnectionState("fallback");
+	});
+
+	try {
+		await connection.start();
+		await connection.invoke("JoinGroup", instanceId);
+		hubConnection = connection;
+		setConnectionState("connected");
+		console.log(`SignalR: Connected and joined group ${instanceId}`);
+	} catch (err) {
+		console.warn(
+			"SignalR: Connection failed, falling back to HTTP polling:",
+			err,
+		);
+		hubConnection = null;
+		setConnectionState("fallback");
+	}
 }
 
 /**
@@ -96,6 +230,7 @@ export async function pollForCommands(): Promise<PendingCommand[]> {
 
 /**
  * Reports a command result back to the MCP server.
+ * Tries SignalR first, falls back to HTTP.
  */
 export async function reportResult(
 	commandId: string,
@@ -104,6 +239,25 @@ export async function reportResult(
 	payload?: unknown,
 ): Promise<void> {
 	if (!instanceId) return;
+
+	// Try SignalR first (instant)
+	if (
+		hubConnection &&
+		hubConnection.state === signalR.HubConnectionState.Connected
+	) {
+		try {
+			await hubConnection.invoke(
+				"ReportResult",
+				commandId,
+				success,
+				error,
+				payload,
+			);
+			return;
+		} catch (err) {
+			console.warn("SignalR result report failed, falling back to HTTP:", err);
+		}
+	}
 
 	const body: Record<string, unknown> = {
 		commandId,

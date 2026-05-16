@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.SignalR;
 using OfficeMcpServer.Models;
+using OfficeMcpServer.Hubs;
 
 namespace OfficeMcpServer.Tools;
 
@@ -12,7 +14,16 @@ public static class McpToolEngine
     private static InstanceRegistry _registry = new();
     private static CommandStore _commandStore = new();
     private static AuditLog _auditLog = new();
+    private static IHubContext<CommandHub>? _hubContext;
 
+    /// <summary>
+    /// Sets the SignalR hub context for real-time command push.
+    /// Called during app startup after the hub is mapped.
+    /// </summary>
+    public static void SetHubContext(IHubContext<CommandHub> hubContext)
+    {
+        _hubContext = hubContext;
+    }
     /// <summary>
     /// Gets all MCP tool definitions (fixed list, instance selected via parameter).
     /// </summary>
@@ -788,6 +799,20 @@ public static class McpToolEngine
         };
         _commandStore.AddCommand(cmd);
 
+        // Push command via SignalR if hub is available
+        if (_hubContext != null)
+        {
+            try
+            {
+                await _hubContext.Clients.Group(instanceId)
+                    .SendAsync("ExecuteCommand", commandId, name, cmd.Args);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SignalR push failed for {instanceId}: {ex.Message}");
+            }
+        }
+
         _auditLog.Log(new AuditEntry
         {
             ToolName = name,
@@ -892,6 +917,7 @@ public static class McpToolEngine
         _registry = new InstanceRegistry();
         _commandStore = new CommandStore();
         _auditLog = new AuditLog(Path.Combine(Path.GetTempPath(), $"audit-test-{Guid.NewGuid()}").TrimEnd('/'));
+        _hubContext = null; // Clear hub context for test isolation
     }
 
     private static bool IsImageTool(string toolName) =>

@@ -80,6 +80,7 @@ specs/                        # Speckit specifications
 | Instance mgmt   | `GET /instances/:id/commands`   | Poll for pending commands                         |
 | Instance mgmt   | `POST /instances/:id/result`    | Report command results                            |
 | Health          | `GET /health`                   | Server health check                               |
+| SignalR Hub     | `/hubs/commands`                | WebSocket real-time command delivery              |
 | Stdio           | stdin/stdout                    | MCPo-compatible JSON-RPC transport                |
 
 ## Build Commands

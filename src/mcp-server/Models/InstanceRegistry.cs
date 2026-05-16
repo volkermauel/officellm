@@ -41,6 +41,17 @@ public class InstanceRegistry
     private int _nextInstanceId = 1;
     private readonly object _lock = new();
 
+    private static string GetHostPrefix(string appName)
+    {
+        // Normalize appName to host prefix
+        var lower = appName.ToLowerInvariant();
+        if (lower.Contains("word")) return "word_";
+        if (lower.Contains("excel")) return "excel_";
+        if (lower.Contains("outlook")) return "outlook_";
+        if (lower.Contains("powerpoint") || lower.Contains("ppt")) return "powerpoint_";
+        return "office_";
+    }
+
     /// <summary>
     /// Registers a new Office instance and returns its ID.
     /// </summary>
@@ -48,7 +59,7 @@ public class InstanceRegistry
     {
         lock (_lock)
         {
-            string instanceId = $"powerpoint_{_nextInstanceId++}";
+            string instanceId = $"{GetHostPrefix(appName)}{_nextInstanceId++}";
 
             // If this app name already exists, reuse it (update in place)
             if (_instances.ContainsKey(instanceId))

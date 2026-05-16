@@ -29,19 +29,20 @@ Open WebUI                    MCP Server (port 3000)              Office Add-ins
 
 ## Phases
 
-| #   | Spec                                  | Branch               | Scope                                                                                                                        |
-| --- | ------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 0   | [Spike](001-spike/)                   | `001-spike`          | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                            |
-| 1   | [PowerPoint MVP](002-powerpoint-mvp/) | `002-powerpoint-mvp` | Deck outline, slide read, shape update, speaker notes, audit log, task pane                                                  |
-| 2   | [Word MVP](003-word-mvp/)             | `003-word-mvp`       | Outline, paragraphs, rewrite selection (tracked changes), review comments, shared context abstraction                        |
-| 3   | [Excel MVP](004-excel-mvp/)           | `004-excel-mvp`      | Workbook map, read/write range, write formula, create table, range limits, formula validation                                |
-| 4   | [Outlook MVP](005-outlook-mvp/)       | `005-outlook-mvp`    | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate      |
-| 5   | [PowerPoint v2](006-powerpoint-v2/)   | `006-powerpoint-v2`  | Full shape properties, image export, table reading, selection context, direct write operations, shape CRUD, slide management |
-| 8   | [SignalR Transport](008-signalr-transport/) | `008-signalr-transport` | WebSocket transport upgrade, fix instance ID naming, concurrent commands, HTTP fallback |
-| 9   | [Outlook Graph](009-outlook-graph/)   | `009-outlook-graph`   | Folder listing, email search, calendar events, shared mailboxes, compose email, Graph API via NAA proxy |
-| 10  | [Excel Analysis](010-excel-analysis/) | `010-excel-analysis`  | Sheet management, sort, filter, charts, conditional formatting, cell formatting, pivot tables |
-| 11  | [Word Structure](011-word-structure/) | `011-word-structure`  | Tables CRUD, headers/footers, replace selection, images, styles, sections, lists |
-| 12  | [Cross-Cutting](012-cross-cutting/)   | `012-cross-cutting`   | Unified document context, consistent error codes, document stats, batch operations |
+| #   | Spec                                        | Branch                  | Scope                                                                                                                        |
+| --- | ------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 0   | [Spike](001-spike/)                         | `001-spike`             | MCP server hub + unified Office JS Add-in (auto-detects host) + Open WebUI integration validation                            |
+| 1   | [PowerPoint MVP](002-powerpoint-mvp/)       | `002-powerpoint-mvp`    | Deck outline, slide read, shape update, speaker notes, audit log, task pane                                                  |
+| 2   | [Word MVP](003-word-mvp/)                   | `003-word-mvp`          | Outline, paragraphs, rewrite selection (tracked changes), review comments, shared context abstraction                        |
+| 3   | [Excel MVP](004-excel-mvp/)                 | `004-excel-mvp`         | Workbook map, read/write range, write formula, create table, range limits, formula validation                                |
+| 4   | [Outlook MVP](005-outlook-mvp/)             | `005-outlook-mvp`       | Current item read, thread summary, draft reply (never auto-send), category apply, policy filter, send confirmation gate      |
+| 5   | [PowerPoint v2](006-powerpoint-v2/)         | `006-powerpoint-v2`     | Full shape properties, image export, table reading, selection context, direct write operations, shape CRUD, slide management |
+| 8   | [SignalR Transport](008-signalr-transport/) | `008-signalr-transport` | WebSocket transport upgrade, fix instance ID naming, concurrent commands, HTTP fallback                                      |
+| 9   | [Outlook Graph](009-outlook-graph/)         | `009-outlook-graph`     | Folder listing, email search, calendar events, shared mailboxes, compose email, Graph API via NAA proxy                      |
+| 10  | [Excel Analysis](010-excel-analysis/)       | `010-excel-analysis`    | Sheet management, sort, filter, charts, conditional formatting, cell formatting, pivot tables                                |
+| 11  | [Word Structure](011-word-structure/)       | `011-word-structure`    | Tables CRUD, headers/footers, replace selection, images, styles, sections, lists                                             |
+| 12  | [Cross-Cutting](012-cross-cutting/)         | `012-cross-cutting`     | Unified document context, consistent error codes, document stats, batch operations                                           |
+
 ## Progression
 
 Each phase is **independently completable** and builds on the shared infrastructure established by earlier phases:
@@ -91,27 +92,27 @@ The instance registration (`POST /instances/register`) includes the `appName` fi
 
 ### Planned (Phases 8–12)
 
-| Tool                              | Host       | Phase | Scope |
-| --------------------------------- | ---------- | ----- | ----- |
-| `outlook_list_folders`            | Outlook    | 9     | List mail folders with unread counts |
-| `outlook_list_emails`             | Outlook    | 9     | Paginated email listing in folder |
-| `outlook_search_emails`           | Outlook    | 9     | Full-text search across mailbox |
-| `outlook_get_email`               | Outlook    | 9     | Read specific email by ID |
-| `outlook_list_calendar_events`    | Outlook    | 9     | Upcoming calendar appointments |
-| `outlook_compose_email`           | Outlook    | 9     | Create new email draft (never auto-send) |
-| `outlook_move_email`              | Outlook    | 9     | Move email to folder |
-| `excel_add_sheet`                 | Excel      | 10    | Add/rename/delete worksheets |
-| `excel_sort_range`                | Excel      | 10    | Multi-column sort |
-| `excel_filter_range`              | Excel      | 10    | Autofilter with criteria |
-| `excel_create_chart`              | Excel      | 10    | Create chart from data range |
-| `excel_format_range`              | Excel      | 10    | Font, fill, borders, alignment |
-| `excel_create_pivottable`         | Excel      | 10    | Pivot table from data range |
-| `word_get_tables`                 | Word       | 11    | Read tables with cell content |
-| `word_insert_table`               | Word       | 11    | Create table at location |
-| `word_replace_selection`          | Word       | 11    | Replace current selection (tracked) |
-| `word_get_headers_footers`        | Word       | 11    | Read header/footer content |
-| `word_insert_image`               | Word       | 11    | Insert inline image |
-| `office_get_document_context`     | **All**    | 12    | Unified context for any host |
+| Tool                           | Host    | Phase | Scope                                    |
+| ------------------------------ | ------- | ----- | ---------------------------------------- |
+| `outlook_list_folders`         | Outlook | 9     | List mail folders with unread counts     |
+| `outlook_list_emails`          | Outlook | 9     | Paginated email listing in folder        |
+| `outlook_search_emails`        | Outlook | 9     | Full-text search across mailbox          |
+| `outlook_get_email`            | Outlook | 9     | Read specific email by ID                |
+| `outlook_list_calendar_events` | Outlook | 9     | Upcoming calendar appointments           |
+| `outlook_compose_email`        | Outlook | 9     | Create new email draft (never auto-send) |
+| `outlook_move_email`           | Outlook | 9     | Move email to folder                     |
+| `excel_add_sheet`              | Excel   | 10    | Add/rename/delete worksheets             |
+| `excel_sort_range`             | Excel   | 10    | Multi-column sort                        |
+| `excel_filter_range`           | Excel   | 10    | Autofilter with criteria                 |
+| `excel_create_chart`           | Excel   | 10    | Create chart from data range             |
+| `excel_format_range`           | Excel   | 10    | Font, fill, borders, alignment           |
+| `excel_create_pivottable`      | Excel   | 10    | Pivot table from data range              |
+| `word_get_tables`              | Word    | 11    | Read tables with cell content            |
+| `word_insert_table`            | Word    | 11    | Create table at location                 |
+| `word_replace_selection`       | Word    | 11    | Replace current selection (tracked)      |
+| `word_get_headers_footers`     | Word    | 11    | Read header/footer content               |
+| `word_insert_image`            | Word    | 11    | Insert inline image                      |
+| `office_get_document_context`  | **All** | 12    | Unified context for any host             |
 
 ## Workflow
 
